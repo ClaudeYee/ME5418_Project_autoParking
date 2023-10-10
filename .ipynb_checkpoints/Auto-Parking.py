@@ -21,7 +21,6 @@ from gym.envs.classic_control import rendering
 
 ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
-
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
 # dirDict = {0:(0,0),1:(0,1),2:(1,0),3:(0,-1),4:(-1,0),5:(1,1),6:(1,-1),7:(-1,-1),8:(-1,1)}
@@ -40,12 +39,12 @@ class State(object):
         agent goal = positive int(agent_id)
     '''
 
-    def __init__(self, world0, goals, diagonal):
-        assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+    def __init__(self，world0):
+        #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
         self.pos = pos.copy()
         self.agent_pos = self.scanForAgent()
-        self.direction =
+        self.direction = self.getPos
 
     def scanForAgent(self):
         agent_pos = (-1, -1)
@@ -127,8 +126,6 @@ class State(object):
     #    -1: out of bounds
     #    -2: collision with wall
     def act(self, action):
-        # 0     1  2  3  4
-        # still N  E  S  W
         direction = self.getDir(action)
         moved = self.moveAgent(direction)
         return moved
