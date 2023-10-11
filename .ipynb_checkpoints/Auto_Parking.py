@@ -46,6 +46,7 @@ class State(object):
         self.agent_pos, self.direction = self.getPos()
         self.Shape1, self.Shape2 = self.getShape(carSize)
 
+
     # # def scanForAgent(self):
     # #     agent_pos = (-1, -1)
     # #     agent_last = (-1, -1)
@@ -81,6 +82,8 @@ class State(object):
 
     # try to move agent and return the status
     def moveAgent(self, action):
+        # action is a list. Its first element is destination,
+        # And its second element is desired heading
         destination, heading = action[0], action[1]
 
         # Not moving is always allowed
@@ -89,7 +92,6 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         Hitbox = self.getHitBox(destination, heading)
-        print(Hitbox)
         is_in_parking_space = []
 
         for i in range(len(Hitbox)):
@@ -109,8 +111,10 @@ class State(object):
         self.agent_pos = destination
         self.direction = heading
         self.pos[self.agent_pos] = heading
+        self.
 
-        # see if every pixel is in the same parking space
+        # See if every pixel is in the same parking space
+        # If so, then our car parked in its space
         if len(is_in_parking_space) == len(Hitbox):
             return int(is_in_parking_space[0])
 
