@@ -3,6 +3,7 @@ from gym import spaces
 import numpy as np
 from collections import OrderedDict
 import sys
+import time
 from matplotlib.colors import hsv_to_rgb
 import random
 import math
@@ -28,24 +29,16 @@ ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
 
 class State(object):
-    '''
-    State.
-    Implemented as 2 2d numpy arrays.
-    first one "state":
-        static obstacle: -1
-        empty: 0
-        agent = positive integer (agent_id)
-    second one "goals":
-        agent goal = positive int(agent_id)
-    '''
 
     def __init__(self, world0, pos, carSize):
-        #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
-        self.state = world0.copy()
-        self.pos = pos.copy()
-        self.agent_pos, self.direction = self.getPos()
-        self.Shape1, self.Shape2 = self.getShape(carSize)
-        self.Hitbox = self.getHitBox(self.agent_pos, self.direction)
+            # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+            self.state = world0.copy()
+            self.pos = pos.copy()
+            self.agent_pos, self.direction = self.getPos()
+            self.Shape1, self.Shape2 = self.getShape(carSize)
+            self.actions = [0, 1, 2, 3, 4, 5, 6]
+            self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
+            # 0:stay 1:forward 2:back 3:left 4:right 5:leftback 6:rightback
 
 
     # # def scanForAgent(self):
