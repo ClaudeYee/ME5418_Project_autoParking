@@ -102,6 +102,8 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         Hitbox = self.getHitBox(destination, heading)
+        is_in_parking_space = Ture
+
         for i in range(len(Hitbox)):
             x, y = Hitbox[i]
             if (x >= self.state.shape[0] or x < 0
@@ -111,14 +113,18 @@ class State(object):
             if self.state[x, y] == -1:  # collide with static obstacle
                 return -2
 
+            elif self.state[x, y] == 0:
+                is_in_parking_space.append(self.state[x, y])
 
         # No collision: we can carry out the action
         self.pos[self.agent_pos] = -1
         self.agent_pos = destination
+        self.direction = heading
         self.pos[self.agent_pos] = heading
 
-        if self.goals[ax + dx, ay + dy] == 1:  # reached goal
-            return 1
+        # see if every pixel is in the same parking space
+        if len(is_in_parking_space) == len(Hitbox):
+            return is_in_parking_space[0]
 
         # none of the above
         return 0
