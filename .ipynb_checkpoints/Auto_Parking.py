@@ -132,8 +132,11 @@ class State(object):
     # def getAction(self, direction):
     #     return actionDict[direction]
 
-
-    # This function will generate 2 hitboxes, others will be obtained by translation transformation
+    # Space occupied by the vehicle is represented by hitbox
+    # It is a list with every element a 1*2 vector,
+    # The vector is the index of a pixel, which the vehicle occupies
+    # This function will generate 2 hitboxes, others will be obtained
+    # by a simple rotate & translation transformation
     def getShape(self, carShape):
         # Shape1 is the hitbox when car is at [0, 0] with dir = 0
         # Shape2 is the hitbox with dir = 1
@@ -169,28 +172,36 @@ class State(object):
 
         return Shape1, Shape2
 
+    # Calculate the hitbox
     def getHitBox(self, pos, dir):
+        # desired position and direction
         agent_pos = pos
         agent_dir = dir
 
         shift = np.array(agent_pos)
         hitbox = []
 
+        # See if direction is tilted
+        # If not, use Shape1
         if agent_dir % 2 == 0:
             Shape = self.Shape1
             angle = agent_dir / 2 * np.pi
+        # Else, use Shape2
         else:
             Shape = self.Shape2
             angle = (agent_dir - 1) / 2 * np.pi
 
+        # Calculate the rotation Matrix
         angle_rad = np.radians(angle)
         cos_angle = np.cos(angle_rad)
         sin_angle = np.sin(angle_rad)
         rotateMatrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
         for i in range(len(Shape)):
-            rotated_pixel = np.array(Shape[i]).dot(rotateMatrix)
-            finial_pixel = rotated_pixel + shift
-            hitbox.append([int(finial_pixel[0]), int(finial_pixel[1])])
+            # Apply the rotation Transform
+            rotated_pixels = np.array(Shape[i]).dot(rotateMatrix)
+            # Apply the translation Transform
+            finial_pixels = rotated_pixels + shift
+            hitbox.append([int(finial_pixels[0]), int(finial_pixels[1])])
 
         return hitbox
