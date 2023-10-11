@@ -42,47 +42,34 @@ class State(object):
     def __init__(self, world0, pos, carSize):
         #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
-        #233
         self.pos = pos.copy()
-        self.agent_pos = self.scanForAgent()
-        self.direction = self.getPos
+        self.agent_pos, self.direction = self.getPos()
+        self.Shape1, self.Shape2 = self.getShape(carSize)
 
-    def scanForAgent(self):
-        agent_pos = (-1, -1)
-        agent_last = (-1, -1)
-        for i in range(self.state.shape[0]):
-            for j in range(self.state.shape[1]):
-                if (self.state[i, j] > 0):
-                    agent_pos = (i, j)
-                    agent_last = (i, j)
-                if (self.goals[i, j] > 0):
-                    agent_goal = (i, j)
+    # # def scanForAgent(self):
+    # #     agent_pos = (-1, -1)
+    # #     agent_last = (-1, -1)
+    # #     for i in range(self.state.shape[0]):
+    # #         for j in range(self.state.shape[1]):
+    # #             if (self.state[i, j] > 0):
+    # #                 agent_pos = (i, j)
+    # #                 agent_last = (i, j)
+    # #             if (self.goals[i, j] > 0):
+    # #                 agent_goal = (i, j)
+    #
+    #     assert (agent_pos != (-1, -1) and agent_goal != (-1, -1))
+    #     assert (agent_pos == agent_last)
+    #     return agent_pos, agent_last, agent_goal
 
-        assert (agent_pos != (-1, -1) and agent_goal != (-1, -1))
-        assert (agent_pos == agent_last)
-        return agent_pos, agent_last, agent_goal
-
-    def setDirection(self, direction):
-        self.direction = direction
+    # def setDirection(self, direction):
+    #     self.direction = direction
 
     def getPos(self):
-        x, y = self.agent_pos
-        if self.direction == "0":
-            return x, y, "0"
-        elif self.direction == "1":
-            return x, y, "1"
-        elif self.direction == "2":
-            return x, y, "2"
-        elif self.direction == "3":
-            return x, y, "3"
-        elif self.direction == "4":
-            return x, y, "4"
-        elif self.direction == "5":
-            return x, y, "5"
-        elif self.direction == "6":
-            return x, y, "6"
-        elif self.direction == "7":
-            return x, y, "7"
+        size = [np.size(self.pos, 0), np.size(self.pos, 1)]
+        for i in range(size[0]):
+            for j in range(size[0]):
+                if self.pos[i, j] != -1:
+                    return [i, j], self.pos[i, j]
 
     # return self.agent_pos
 
