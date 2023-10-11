@@ -40,9 +40,8 @@ class State(object):
     '''
 
     def __init__(self, world0):
-        # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+        #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
-        #233
         self.pos = pos.copy()
         self.agent_pos = self.scanForAgent()
         self.direction = self.getPos
@@ -66,7 +65,7 @@ class State(object):
         self.direction = direction
 
     def getPos(self):
-        x, y, _ = self.agent_pos
+        x, y = self.agent_pos
         if self.direction == "0":
             return x, y, "0"
         elif self.direction == "1":
@@ -93,34 +92,37 @@ class State(object):
     # return self.agent_goal
 
     # try to move agent and return the status
-    def moveAgent(self, direction):
-        ax, ay = self.agent_pos
+    def moveAgent(self, action):
+        destination, heading = action
 
         # Not moving is always allowed
-        if (direction == (0, 0)):
-            self.agent_past = self.agent_pos
+        if destination == self.agent_pos and heading == self.direction:
             return 0
 
         # Otherwise, let's look at the validity of the move
-        dx, dy = direction[0], direction[1]
-        if (ax + dx >= self.state.shape[0] or ax + dx < 0 or ay + dy >= self.state.shape[
-            1] or ay + dy < 0):  # out of bounds
-            return -1
-        if (self.state[ax + dx, ay + dy] < 0):  # collide with static obstacle
-            return -2
+        Hitbox = self.getHitBox(destination, heading)
+        for i in range(len(Hitbox)):
+            x, y = Hitbox[i]
+            if (x >= self.state.shape[0] or x < 0
+                    or y >= self.state.shape[1] or y < 0):  # out of bounds
+                return -1
+
+            if self.state[x, y] == -1:  # collide with static obstacle
+                return -2
+
 
         # No collision: we can carry out the action
-        self.state[ax, ay] = 0
-        self.state[ax + dx, ay + dy] = 1
-        self.agent_past = self.agent_pos
-        self.agent_pos = (ax + dx, ay + dy)
+        self.pos[self.agent_pos] = -1
+        self.agent_pos = destination
+        self.pos[self.agent_pos] = heading
+
         if self.goals[ax + dx, ay + dy] == 1:  # reached goal
             return 1
 
         # none of the above
         return 0
 
-    # try to execture action and return whether action was executed or not and why
+    # try to execute action and return whether action was executed or not and why
     # returns:
     #     1: action executed and reached goal
     #     0: action executed
@@ -136,3 +138,64 @@ class State(object):
 
     def getAction(self, direction):
         return actionDict[direction]
+
+    # carShape is a three element tuple
+    # The first one element is the distant from the centre to the front edge of car
+    # The second is the distant to rear edge, the third is to left/right edge
+    def getShape(self, carShape):
+        # Shape1 is the hitbox when car is at [0, 0] with dir = 0
+        # Shape2 is the hitbox with dir = 0
+        Shape1 = []
+        Shape2 = []
+
+        for i in range(-1 * carShape[2], carShape[2] + 1, 1):
+            for j in range(-1 * carShape[1], carShape[0] + 1, 1):
+                Shape1.append([i, j])
+
+        # calculate the max possible size after rotation
+        maxL = np.power(carShape[1] + carShape[0] + 1, 2) + np.power(2 * carShape[2] + 1, 2)
+        maxL = int(np.ceil(np.power(maxL, 0.5))) + 3
+
+        angle_rad = np.radians(45)
+        cos_angle = np.cos(angle_rad)
+        sin_angle = np.sin(angle_rad)
+
+        for y in range(-maxL, maxL + 1, 1):
+            for x in range(-maxL, maxL + 1, 1):
+                pixel_coords = np.array([x, y])
+                # rotate pixel back to origin coords
+                rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
+
+                # see if within origin hitbox
+                if ((-1 * carShape[1] - 0.5) < rotated_pixel_coords[0] < (carShape[0] + 0.5) and ...
+                    (-1 * carShape[2] - 0.5) < rotated_pixel_coords[1] < (carShape[2] + 0.5)):
+                    # if so, add to Shape2
+                    Shape2.append([x, y])
+
+        return Shape1, Shape2
+
+    def getHitBox(self, pos, dir):
+        agent_pos = pos
+        agent_dir = dir
+
+        shift = np.array(agent_pos)
+        hitbox = []
+
+        if agent_dir % 2 == 0:
+            Shape = self.Shape1
+            angle = agent_dir / 2 * np.pi
+        else:
+            Shape = self.Shape2
+            angle = (agent_dir - 1) / 2 * np.pi
+
+        angle_rad = np.radians(angle)
+        cos_angle = np.cos(angle_rad)
+        sin_angle = np.sin(angle_rad)
+        rotateMatrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
+
+        for i in range(len(Shape)):
+            rotated_pixel = np.array(Shape[i]).dot(rotateMatrix)
+            finial_pixel = rotated_pixel + shift
+            hitbox.append([finial_pixel[0], finial_pixel[1]])
+
+        return hitbox
