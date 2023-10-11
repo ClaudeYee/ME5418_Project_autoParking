@@ -28,6 +28,16 @@ ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
 
 class State(object):
+    '''
+    State.
+    Implemented as 2 2d numpy arrays.
+    first one "state":
+        static obstacle: -1
+        empty: 0
+        agent = positive integer (agent_id)
+    second one "goals":
+        agent goal = positive int(agent_id)
+    '''
 
     def __init__(self, world0, pos, carSize):
         #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
@@ -35,9 +45,7 @@ class State(object):
         self.pos = pos.copy()
         self.agent_pos, self.direction = self.getPos()
         self.Shape1, self.Shape2 = self.getShape(carSize)
-        self.actions = [0, 1, 2, 3, 4, 5, 6]
-        self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
-        #0:stay 1:forward 2:back 3:left 4:right 5:leftback 6:rightback
+        self.Hitbox = self.getHitBox(self.agent_pos, self.direction)
 
 
     # # def scanForAgent(self):
@@ -104,7 +112,7 @@ class State(object):
         self.agent_pos = destination
         self.direction = heading
         self.pos[self.agent_pos] = heading
-        self.
+        self.Hitbox = Hitbox
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
@@ -131,16 +139,17 @@ class State(object):
     # def getAction(self, direction):
     #     return actionDict[direction]
 
-    # carShape is a three element tuple
-    # The first one element is the distant from the centre to the front edge of car
-    # The second is the distant to rear edge, the third is to left/right edge
+
     # This function will generate 2 hitboxes, others will be obtained by translation transformation
     def getShape(self, carShape):
         # Shape1 is the hitbox when car is at [0, 0] with dir = 0
-        # Shape2 is the hitbox with dir = 0
+        # Shape2 is the hitbox with dir = 1
         Shape1 = []
         Shape2 = []
 
+        # carShape is a three element tuple
+        # The first one element is the distant from the centre to the front edge of car
+        # The second is the distant to rear edge, the third is to left/right edge
         for i in range(-1 * carShape[2], carShape[2] + 1, 1):
             for j in range(-1 * carShape[1], carShape[0] + 1, 1):
                 Shape1.append([i, j])
