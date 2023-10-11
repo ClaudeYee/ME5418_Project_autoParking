@@ -42,6 +42,7 @@ class State(object):
     def __init__(self, world0):
         #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
+        #233
         self.pos = pos.copy()
         self.agent_pos = self.scanForAgent()
         self.direction = self.getPos
