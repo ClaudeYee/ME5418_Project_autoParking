@@ -89,7 +89,7 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         Hitbox = self.getHitBox(destination, heading)
-        is_in_parking_space = Ture
+        is_in_parking_space = []
 
         for i in range(len(Hitbox)):
             x, y = Hitbox[i]
@@ -161,7 +161,7 @@ class State(object):
                 rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
 
                 # see if within origin hitbox
-                if ((-1 * carShape[1] - 0.5) < rotated_pixel_coords[0] < (carShape[0] + 0.5) and ...
+                if ((-1 * carShape[1] - 0.5) < rotated_pixel_coords[0] < (carShape[0] + 0.5) and
                     (-1 * carShape[2] - 0.5) < rotated_pixel_coords[1] < (carShape[2] + 0.5)):
                     # if so, add to Shape2
                     Shape2.append([x, y])
