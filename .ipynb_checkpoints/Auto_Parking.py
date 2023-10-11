@@ -39,7 +39,7 @@ class State(object):
         agent goal = positive int(agent_id)
     '''
 
-    def __init__(self, world0):
+    def __init__(self, world0, pos, carSize):
         #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
         #233
