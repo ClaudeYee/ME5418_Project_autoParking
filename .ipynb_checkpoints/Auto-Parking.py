@@ -39,9 +39,10 @@ class State(object):
         agent goal = positive int(agent_id)
     '''
 
-    def __init__(self，world0):
-        #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+    def __init__(self, world0):
+        # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
+        #233
         self.pos = pos.copy()
         self.agent_pos = self.scanForAgent()
         self.direction = self.getPos
@@ -65,7 +66,7 @@ class State(object):
         self.direction = direction
 
     def getPos(self):
-        x, y = self.agent_pos
+        x, y, _ = self.agent_pos
         if self.direction == "0":
             return x, y, "0"
         elif self.direction == "1":
