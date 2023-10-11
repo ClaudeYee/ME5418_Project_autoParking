@@ -141,6 +141,7 @@ class State(object):
     # carShape is a three element tuple
     # The first one element is the distant from the centre to the front edge of car
     # The second is the distant to rear edge, the third is to left/right edge
+    # This function will generate 2 hitboxes, others will be obtained by translation transformation
     def getShape(self, carShape):
         # Shape1 is the hitbox when car is at [0, 0] with dir = 0
         # Shape2 is the hitbox with dir = 0
