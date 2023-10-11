@@ -81,7 +81,7 @@ class State(object):
 
     # try to move agent and return the status
     def moveAgent(self, action):
-        destination, heading = action
+        destination, heading = action[0], action[1]
 
         # Not moving is always allowed
         if destination == self.agent_pos and heading == self.direction:
@@ -89,15 +89,16 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         Hitbox = self.getHitBox(destination, heading)
+        print(Hitbox)
         is_in_parking_space = []
 
         for i in range(len(Hitbox)):
-            x, y = Hitbox[i]
+            x, y = Hitbox[i][0], Hitbox[i][1]
             if (x >= self.state.shape[0] or x < 0
                     or y >= self.state.shape[1] or y < 0):  # out of bounds
                 return -1
 
-            if self.state[x, y] == -1:  # collide with static obstacle
+            if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
             elif self.state[x, y] == 0:
@@ -190,6 +191,6 @@ class State(object):
         for i in range(len(Shape)):
             rotated_pixel = np.array(Shape[i]).dot(rotateMatrix)
             finial_pixel = rotated_pixel + shift
-            hitbox.append([finial_pixel[0], finial_pixel[1]])
+            hitbox.append([int(finial_pixel[0]), int(finial_pixel[1])])
 
         return hitbox
