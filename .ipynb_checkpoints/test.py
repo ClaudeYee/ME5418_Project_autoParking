@@ -16,6 +16,6 @@ S = Auto_Parking.State(A, B, [1, 1, 1])
 
 a = [[2, 2], 1]
 
-print(S.Shape2)
+print(S.shape0)
 
 print(S.moveAgent(a))

@@ -4,7 +4,7 @@ import numpy as np
 from collections import OrderedDict
 import sys
 import time
-from matplotlib.colors import hsv_to_rgb
+# from matplotlib.colors import hsv_to_rgb
 import random
 import math
 import copy
@@ -36,9 +36,9 @@ class State(object):
             self.pos = pos.copy()
             self.agent_pos, self.direction = self.getPos()
             self.shape0, self.shape1 = self.getShape(carSize)
-            self.hitbox_index = self.getHitbox(self.agent_pos, self.direction)
-            self.hitbox = zeros(self.state.shape[0], self.state.shape[1])
-            self.renderHitbox()
+            self.hitbox_index = self.getHitBox(self.agent_pos, self.direction)
+            self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
+            self.renderHitBox()
             
             self.actions = [0, 1, 2, 3, 4, 5, 6]
             self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
@@ -102,11 +102,11 @@ class State(object):
         self.direction = heading
         self.pos[self.agent_pos] = heading
         self.hitbox_index = hitbox_index
-        self.renderHitbox()
+        self.renderHitBox()
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
-        if len(is_in_parking_space) == len(Hitbox):
+        if len(is_in_parking_space) == len(hitbox_index):
             return int(is_in_parking_space[0])
 
         # none of the above
@@ -181,11 +181,11 @@ class State(object):
         # See if direction is tilted
         # If not, use Shape1
         if agent_dir % 2 == 0:
-            Shape = self.Shape1
+            shape = self.shape0
             angle = agent_dir / 2 * np.pi
         # Else, use Shape2
         else:
-            Shape = self.Shape2
+            shape = self.shape1
             angle = (agent_dir - 1) / 2 * np.pi
 
         # Calculate the rotation Matrix
@@ -194,19 +194,19 @@ class State(object):
         sin_angle = np.sin(angle_rad)
         rotateMatrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
-        for i in range(len(Shape)):
+        for i in range(len(shape)):
             # Apply the rotation Transform
-            rotated_pixels = np.array(Shape[i]).dot(rotateMatrix)
+            rotated_pixels = np.array(shape[i]).dot(rotateMatrix)
             # Apply the translation Transform
             finial_pixels = rotated_pixels + shift
             hitbox_index.append([int(finial_pixels[0]), int(finial_pixels[1])])
 
         return hitbox_index
 
-def renderHitbox(self):
-    self.hitbox = zeros(self.state.shape[0], self.state.shape[1])
-    for i in range(self.hitbox_index):
-        index0 = self.hitbox_index[i][0]
-        index1 = self.hitbox_index[i][1]
-        self.hitbox[index0, index1] = 1
+    def renderHitBox(self):
+        self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
+        for i in range(len(self.hitbox_index)):
+            index0 = self.hitbox_index[i][0]
+            index1 = self.hitbox_index[i][1]
+            self.hitbox[index0, index1] = 1
     
