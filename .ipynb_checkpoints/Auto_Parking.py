@@ -35,7 +35,10 @@ class State(object):
             self.state = world0.copy()
             self.pos = pos.copy()
             self.agent_pos, self.direction = self.getPos()
-            self.Shape1, self.Shape2 = self.getShape(carSize)
+            self.shape0, self.shape1 = self.getShape(carSize)
+            self.hitbox_index = self.getHitbox(self.agent_pos, self.direction)
+            self.hitbox = zeros(self.state.shape[0], self.state.shape[1])
+            
             self.actions = [0, 1, 2, 3, 4, 5, 6]
             self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
             # 0:stay 1:forward 2:back 3:left 4:right 5:leftback 6:rightback
@@ -204,4 +207,9 @@ class State(object):
             finial_pixels = rotated_pixels + shift
             hitbox.append([int(finial_pixels[0]), int(finial_pixels[1])])
 
-        return hitbox
+        return hitbox_index
+
+def renderHitbox(self):
+    for i in range(size[0]):
+        for j in range(size[0]):
+    
