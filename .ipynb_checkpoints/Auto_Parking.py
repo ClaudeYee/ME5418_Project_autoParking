@@ -145,7 +145,7 @@ class State(object):
         # The second is the distant to rear edge, the third is to left/right edge
         for i in range(-1 * carShape[2], carShape[2] + 1, 1):
             for j in range(-1 * carShape[1], carShape[0] + 1, 1):
-                Shape1.append([i, j])
+                shape0.append([i, j])
 
         # calculate the max possible size after rotation
         maxL = np.power(carShape[1] + carShape[0] + 1, 2) + np.power(2 * carShape[2] + 1, 2)
@@ -162,12 +162,12 @@ class State(object):
                 rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
 
                 # see if within origin hitbox
-                if ((-1 * carShape[1] - 0.5) < rotated_pixel_coords[0] < (carShape[0] + 0.5) and
-                    (-1 * carShape[2] - 0.5) < rotated_pixel_coords[1] < (carShape[2] + 0.5)):
-                    # if so, add to Shape2
-                    Shape2.append([x, y])
+                if ((-1 * carShape[1]) < rotated_pixel_coords[0] < (carShape[0]) and
+                    (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
+                    # if so, add to shape1
+                    shape1.append([x, y])
 
-        return Shape1, Shape2
+        return shape0, shape1
 
     # Calculate the hitbox
     def getHitBox(self, pos, dir):
@@ -176,7 +176,7 @@ class State(object):
         agent_dir = dir
 
         shift = np.array(agent_pos)
-        hitbox = []
+        hitbox_index = []
 
         # See if direction is tilted
         # If not, use Shape1
@@ -199,7 +199,7 @@ class State(object):
             rotated_pixels = np.array(Shape[i]).dot(rotateMatrix)
             # Apply the translation Transform
             finial_pixels = rotated_pixels + shift
-            hitbox.append([int(finial_pixels[0]), int(finial_pixels[1])])
+            hitbox_index.append([int(finial_pixels[0]), int(finial_pixels[1])])
 
         return hitbox_index
 
@@ -208,5 +208,5 @@ def renderHitbox(self):
     for i in range(self.hitbox_index):
         index0 = self.hitbox_index[i][0]
         index1 = self.hitbox_index[i][1]
-        self.hitbox[index0, index1]
+        self.hitbox[index0, index1] = 1
     
