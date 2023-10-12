@@ -3,7 +3,8 @@ from gym import spaces
 import numpy as np
 from collections import OrderedDict
 import sys
-from matplotlib.colors import hsv_to_rgb
+import time
+# from matplotlib.colors import hsv_to_rgb
 import random
 import math
 import copy
@@ -21,6 +22,7 @@ from gym.envs.classic_control import rendering
 
 ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
+
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
 # dirDict = {0:(0,0),1:(0,1),2:(1,0),3:(0,-1),4:(-1,0),5:(1,1),6:(1,-1),7:(-1,-1),8:(-1,1)}
@@ -28,97 +30,89 @@ ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
 
 class State(object):
-    '''
-    State.
-    Implemented as 2 2d numpy arrays.
-    first one "state":
-        static obstacle: -1
-        empty: 0
-        agent = positive integer (agent_id)
-    second one "goals":
-        agent goal = positive int(agent_id)
-    '''
 
-    def __init__(self, world0):
-        #assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+    def __init__(self, world0, pos, carSize):
+        # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world0.copy()
-        #233
         self.pos = pos.copy()
-        self.agent_pos = self.scanForAgent()
-        self.direction = self.getPos
+        self.agent_pos, self.direction = self.getPos()
+        self.shape0, self.shape1 = self.getShape(carSize)
+        self.hitbox_index = self.getHitBox(self.agent_pos, self.direction)
+        self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
+        self.renderHitBox()
 
-    def scanForAgent(self):
-        agent_pos = (-1, -1)
-        agent_last = (-1, -1)
-        for i in range(self.state.shape[0]):
-            for j in range(self.state.shape[1]):
-                if (self.state[i, j] > 0):
-                    agent_pos = (i, j)
-                    agent_last = (i, j)
-                if (self.goals[i, j] > 0):
-                    agent_goal = (i, j)
+        self.num_actions = 8
+        # 0:E, 1:NE, 2:N, 3:NW, 4:W, 5:SW, 6:S, 7:SE
+        self.num_directions = 8
+        # 0:E, 1:NE, 2:N, 3:NW, 4:W, 5:SW, 6:S, 7:SE
+        self.direction = 0
+        #initial direction
+        self.action_space = spaces.Tuple((spaces.Discrete(self.num_actions), spaces.Discrete(self.num_directions)))
+        #define action space
 
-        assert (agent_pos != (-1, -1) and agent_goal != (-1, -1))
-        assert (agent_pos == agent_last)
-        return agent_pos, agent_last, agent_goal
+    # # def scanForAgent(self):
+    # #     agent_pos = (-1, -1)
+    # #     agent_last = (-1, -1)
+    # #     for i in range(self.state.shape[0]):
+    # #         for j in range(self.state.shape[1]):
+    # #             if (self.state[i, j] > 0):
+    # #                 agent_pos = (i, j)
+    # #                 agent_last = (i, j)
+    # #             if (self.goals[i, j] > 0):
+    # #                 agent_goal = (i, j)
+    #
+    #     assert (agent_pos != (-1, -1) and agent_goal != (-1, -1))
+    #     assert (agent_pos == agent_last)
+    #     return agent_pos, agent_last, agent_goal
 
-    def setDirection(self, direction):
-        self.direction = direction
+    # def setDirection(self, direction):
+    #     self.direction = direction
 
     def getPos(self):
-        x, y = self.agent_pos
-        if self.direction == "0":
-            return x, y, "0"
-        elif self.direction == "1":
-            return x, y, "1"
-        elif self.direction == "2":
-            return x, y, "2"
-        elif self.direction == "3":
-            return x, y, "3"
-        elif self.direction == "4":
-            return x, y, "4"
-        elif self.direction == "5":
-            return x, y, "5"
-        elif self.direction == "6":
-            return x, y, "6"
-        elif self.direction == "7":
-            return x, y, "7"
-
-    # return self.agent_pos
-
-    # def getPastPos(self):
-    # return self.agent_past
-
-    # def getGoal(self):
-    # return self.agent_goal
+        size = [np.size(self.pos, 0), np.size(self.pos, 1)]
+        for i in range(size[0]):
+            for j in range(size[0]):
+                if self.pos[i, j] != -1:
+                    return [i, j], self.pos[i, j]
 
     # try to move agent and return the status
     def moveAgent(self, action):
-        destination, heading = action
+        # action is a list. Its first element is destination,
+        # And its second element is desired heading
+        destination, heading = action[0], action[1]
 
         # Not moving is always allowed
         if destination == self.agent_pos and heading == self.direction:
             return 0
 
         # Otherwise, let's look at the validity of the move
-        Hitbox = self.getHitBox(destination, heading)
-        for i in range(len(Hitbox)):
-            x, y = Hitbox[i]
+        hitbox_index = self.getHitBox(destination, heading)
+        is_in_parking_space = []
+
+        for i in range(len(hitbox_index)):
+            x, y = hitbox_index[i][0], hitbox_index[i][1]
             if (x >= self.state.shape[0] or x < 0
                     or y >= self.state.shape[1] or y < 0):  # out of bounds
                 return -1
 
-            if self.state[x, y] == -1:  # collide with static obstacle
+            if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
+            elif self.state[x, y] != 0:
+                is_in_parking_space.append(self.state[x, y])
 
         # No collision: we can carry out the action
         self.pos[self.agent_pos] = -1
         self.agent_pos = destination
+        self.direction = heading
         self.pos[self.agent_pos] = heading
+        self.hitbox_index = hitbox_index
+        self.renderHitBox()
 
-        if self.goals[ax + dx, ay + dy] == 1:  # reached goal
-            return 1
+        # See if every pixel is in the same parking space
+        # If so, then our car parked in its space
+        if len(is_in_parking_space) == len(hitbox_index):
+            return int(is_in_parking_space[0])
 
         # none of the above
         return 0
@@ -129,29 +123,37 @@ class State(object):
     #     0: action executed
     #    -1: out of bounds
     #    -2: collision with wall
-    def act(self, action):
-        direction = self.getDir(action)
-        moved = self.moveAgent(direction)
-        return moved
+    def act(self, action_and_direction):
 
-    def getDir(self, action):
-        return dirDict[action]
+        action, direction = action_and_direction
+        self.direction = direction
+        return self.get_action_direction_vector(action, direction)
+    def get_action_direction_vector(self, action, direction):
+        return [action, direction]
 
-    def getAction(self, direction):
-        return actionDict[direction]
+    # def getDir(self, action):
+    #     return dirDict[action]
+    #
+    # def getAction(self, direction):
+    #     return actionDict[direction]
 
-    # carShape is a three element tuple
-    # The first one element is the distant from the centre to the front edge of car
-    # The second is the distant to rear edge, the third is to left/right edge
+    # Space occupied by the vehicle is represented by hitbox
+    # It is a list with every element a 1*2 vector,
+    # The vector is the index of a pixel, which the vehicle occupies
+    # This function will generate 2 hitboxes, others will be obtained
+    # by a simple rotate & translation transformation
     def getShape(self, carShape):
-        # Shape1 is the hitbox when car is at [0, 0] with dir = 0
-        # Shape2 is the hitbox with dir = 0
-        Shape1 = []
-        Shape2 = []
+        # shape0 is the hitbox when car is at [0, 0] with dir = 0
+        # shape1 is the hitbox with dir = 1
+        shape0 = []
+        shape1 = []
 
+        # carShape is a three element tuple
+        # The first one element is the distant from the centre to the front edge of car
+        # The second is the distant to rear edge, the third is to left/right edge
         for i in range(-1 * carShape[2], carShape[2] + 1, 1):
             for j in range(-1 * carShape[1], carShape[0] + 1, 1):
-                Shape1.append([i, j])
+                shape0.append([i, j])
 
         # calculate the max possible size after rotation
         maxL = np.power(carShape[1] + carShape[0] + 1, 2) + np.power(2 * carShape[2] + 1, 2)
@@ -168,35 +170,50 @@ class State(object):
                 rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
 
                 # see if within origin hitbox
-                if ((-1 * carShape[1] - 0.5) < rotated_pixel_coords[0] < (carShape[0] + 0.5) and ...
-                    (-1 * carShape[2] - 0.5) < rotated_pixel_coords[1] < (carShape[2] + 0.5)):
-                    # if so, add to Shape2
-                    Shape2.append([x, y])
+                if ((-1 * carShape[1]) < rotated_pixel_coords[0] < (carShape[0]) and
+                        (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
+                    # if so, add to shape1
+                    shape1.append([x, y])
 
-        return Shape1, Shape2
+        return shape0, shape1
 
+    # Calculate the hitbox
     def getHitBox(self, pos, dir):
+        # desired position and direction
         agent_pos = pos
         agent_dir = dir
 
         shift = np.array(agent_pos)
-        hitbox = []
+        hitbox_index = []
 
+        # See if direction is tilted
+        # If not, use Shape1
         if agent_dir % 2 == 0:
-            Shape = self.Shape1
+            shape = self.shape0
             angle = agent_dir / 2 * np.pi
+        # Else, use Shape2
         else:
-            Shape = self.Shape2
+            shape = self.shape1
             angle = (agent_dir - 1) / 2 * np.pi
 
+        # Calculate the rotation Matrix
         angle_rad = np.radians(angle)
         cos_angle = np.cos(angle_rad)
         sin_angle = np.sin(angle_rad)
         rotateMatrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
-        for i in range(len(Shape)):
-            rotated_pixel = np.array(Shape[i]).dot(rotateMatrix)
-            finial_pixel = rotated_pixel + shift
-            hitbox.append([finial_pixel[0], finial_pixel[1]])
+        for i in range(len(shape)):
+            # Apply the rotation Transform
+            rotated_pixels = np.array(shape[i]).dot(rotateMatrix)
+            # Apply the translation Transform
+            finial_pixels = rotated_pixels + shift
+            hitbox_index.append([int(finial_pixels[0]), int(finial_pixels[1])])
 
-        return hitbox
+        return hitbox_index
+
+    def renderHitBox(self):
+        self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
+        for i in range(len(self.hitbox_index)):
+            index0 = self.hitbox_index[i][0]
+            index1 = self.hitbox_index[i][1]
+            self.hitbox[index0, index1] = 1
