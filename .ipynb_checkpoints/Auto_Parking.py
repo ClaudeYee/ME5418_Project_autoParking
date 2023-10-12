@@ -38,6 +38,7 @@ class State(object):
             self.shape0, self.shape1 = self.getShape(carSize)
             self.hitbox_index = self.getHitbox(self.agent_pos, self.direction)
             self.hitbox = zeros(self.state.shape[0], self.state.shape[1])
+            self.renderHitbox()
             
             self.actions = [0, 1, 2, 3, 4, 5, 6]
             self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
@@ -69,14 +70,6 @@ class State(object):
                 if self.pos[i, j] != -1:
                     return [i, j], self.pos[i, j]
 
-    # return self.agent_pos
-
-    # def getPastPos(self):
-    # return self.agent_past
-
-    # def getGoal(self):
-    # return self.agent_goal
-
     # try to move agent and return the status
     def moveAgent(self, action):
         # action is a list. Its first element is destination,
@@ -88,11 +81,11 @@ class State(object):
             return 0
 
         # Otherwise, let's look at the validity of the move
-        Hitbox = self.getHitBox(destination, heading)
+        hitbox_index = self.getHitBox(destination, heading)
         is_in_parking_space = []
 
-        for i in range(len(Hitbox)):
-            x, y = Hitbox[i][0], Hitbox[i][1]
+        for i in range(len(hitbox_index)):
+            x, y = hitbox_index[i][0], hitbox_index[i][1]
             if (x >= self.state.shape[0] or x < 0
                     or y >= self.state.shape[1] or y < 0):  # out of bounds
                 return -1
@@ -108,7 +101,8 @@ class State(object):
         self.agent_pos = destination
         self.direction = heading
         self.pos[self.agent_pos] = heading
-        self.Hitbox = Hitbox
+        self.hitbox_index = hitbox_index
+        self.renderHitbox()
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
@@ -141,10 +135,10 @@ class State(object):
     # This function will generate 2 hitboxes, others will be obtained
     # by a simple rotate & translation transformation
     def getShape(self, carShape):
-        # Shape1 is the hitbox when car is at [0, 0] with dir = 0
-        # Shape2 is the hitbox with dir = 1
-        Shape1 = []
-        Shape2 = []
+        # shape0 is the hitbox when car is at [0, 0] with dir = 0
+        # shape1 is the hitbox with dir = 1
+        shape0 = []
+        shape1 = []
 
         # carShape is a three element tuple
         # The first one element is the distant from the centre to the front edge of car
@@ -210,6 +204,9 @@ class State(object):
         return hitbox_index
 
 def renderHitbox(self):
-    for i in range(size[0]):
-        for j in range(size[0]):
+    self.hitbox = zeros(self.state.shape[0], self.state.shape[1])
+    for i in range(self.hitbox_index):
+        index0 = self.hitbox_index[i][0]
+        index1 = self.hitbox_index[i][1]
+        self.hitbox[index0, index1]
     
