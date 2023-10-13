@@ -39,11 +39,16 @@ class State(object):
             self.hitbox_index = self.getHitBox(self.agent_pos, self.direction)
             self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
             self.renderHitBox()
-            
-            self.actions = [0, 1, 2, 3, 4, 5, 6]
-            self.inv_actions = [0, 2, 1, 5, 6, 4, 3]
-            # 0:stay 1:forward 2:back 3:left 4:right 5:leftback 6:rightback
+            self.num_translation_actions = 9
+            #0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
+            self.num_rotation_actions = 9
+            #0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
 
+            self.action_space = spaces.Tuple((
+                spaces.Discrete(self.num_translation_actions),
+                spaces.Discrete(self.num_rotation_actions)
+            ))
+            #define action space two action:translation and rotation
 
     # # def scanForAgent(self):
     # #     agent_pos = (-1, -1)
@@ -118,10 +123,31 @@ class State(object):
     #     0: action executed
     #    -1: out of bounds
     #    -2: collision with wall
-    def act(self, action):
-        direction = self.getDir(action)
-        moved = self.moveAgent(direction)
-        return moved
+        def sample_action(self):
+    #sampling actions
+        return self.action_space.sample()
+
+    def get_action_data(self, action):
+    #return data
+        return action
+
+    TRANSLATION_DIRECTIONS = {
+        0: (0, 0),  # STAY
+        1: (1, 0),  # EAST
+        2: (1, 1),  # NORTHEAST
+        3: (0, 1),  # NORTH
+        4: (-1, 1),  # NORTHWEST
+        5: (-1, 0),  # WEST
+        6: (-1, -1),  # SOUTHWEST
+        7: (0, -1),  # SOUTH
+        8: (1, -1)  # SOUTHEAST
+    }
+
+    def get_new_pos_and_rotation_from_action(current_pos, action):
+        translation = TRANSLATION_DIRECTIONS[action[0]]
+        rotation = action[1]
+        new_pos = (current_pos[0] + translation[0], current_pos[1] + translation[1])
+        return new_pos, rotation
 
     # def getDir(self, action):
     #     return dirDict[action]
