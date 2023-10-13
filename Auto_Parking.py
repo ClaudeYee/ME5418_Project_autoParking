@@ -51,7 +51,7 @@ class State(object):
 
             self.translation_directions = {
                 0: (0, 0),  # STAY
-                1: (1, 0),  # EAST
+                1: (0, 1),  # EAST
                 2: (1, 1),  # NORTHEAST
                 3: (0, 1),  # NORTH
                 4: (-1, 1),  # NORTHWEST
