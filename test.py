@@ -21,3 +21,4 @@ print(S.shape1)
 print(S.moveAgent(a))
 
 print(S.hitbox)
+print(S.state)
