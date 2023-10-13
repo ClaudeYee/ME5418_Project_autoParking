@@ -34,9 +34,9 @@ class State(object):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
             self.pos = pos.copy()
-            self.agent_pos, self.direction = self.getPos()
+            self.robot_state = self.getPos()
             self.shape0, self.shape1 = self.getShape(carSize)
-            self.hitbox_index = self.getHitBox(self.agent_pos, self.direction)
+            self.hitbox_index = self.getHitBox(self.robot_state)
             self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
@@ -47,11 +47,11 @@ class State(object):
                 spaces.Discrete(self.num_translation_actions),
                 spaces.Discrete(self.num_rotation_actions)
             ))
-            #define action space two action:translation and rotation
+            # define action space two action:translation and rotation
 
             self.translation_directions = {
                 0: (0, 0),  # STAY
-                1: (0, 1),  # EAST
+                1: (1, 0),  # EAST
                 2: (1, 1),  # NORTHEAST
                 3: (0, 1),  # NORTH
                 4: (-1, 1),  # NORTHWEST
@@ -84,7 +84,7 @@ class State(object):
         for i in range(size[0]):
             for j in range(size[0]):
                 if self.pos[i, j] != -1:
-                    return [i, j], self.pos[i, j]
+                    return [[i, j], self.pos[i, j]]
 
     # try to move agent and return the status
     def moveAgent(self, action):
@@ -113,10 +113,10 @@ class State(object):
                 is_in_parking_space.append(self.state[x, y])
 
         # No collision: we can carry out the action
-        self.pos[self.agent_pos] = -1
-        self.agent_pos = next_pos
-        self.direction = next_dir
-        self.pos[self.agent_pos] = next_dir
+        self.pos[self.robot_state[0]] = -1
+        self.robot_state[0] = next_pos
+        self.robot_state[1] = next_dir
+        self.pos[self.robot_state[0]] = next_dir
         self.hitbox_index = hitbox_index
         self.hitbox = self.renderHitBox()
 
