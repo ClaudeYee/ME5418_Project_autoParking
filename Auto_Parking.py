@@ -36,7 +36,7 @@ class State(object):
             self.pos = pos.copy()
             self.robot_state = self.getPos()
             self.shape0, self.shape1 = self.getShape(carSize)
-            self.hitbox_index = self.getHitBox(self.robot_state)
+            self.hitbox_index = self.getHitBox(self.robot_state[0], self.robot_state[1])
             self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
@@ -93,7 +93,7 @@ class State(object):
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
         # Not moving is always allowed
-        if next_pos == self.agent_pos and next_dir == self.direction:
+        if next_pos == self.robot_state[0] and next_dir == self.robot_state[1]:
             return 0
 
         # Otherwise, let's look at the validity of the move
@@ -145,7 +145,7 @@ class State(object):
     def get_new_pos_and_rotation_from_action(self, action):
         translation = self.translation_directions[action[0]]
         rotation = action[1]
-        new_pos = (self.agent_pos[0] + translation[0], self.agent_pos[1] + translation[1])
+        new_pos = (self.robot_state[0][0] + translation[0], self.robot_state[0][1] + translation[1])
         return new_pos, rotation
 
     # def getDir(self, action):
