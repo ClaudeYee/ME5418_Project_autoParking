@@ -50,6 +50,18 @@ class State(object):
             ))
             #define action space two action:translation and rotation
 
+            self.translation_directions = {
+                0: (0, 0),  # STAY
+                1: (1, 0),  # EAST
+                2: (1, 1),  # NORTHEAST
+                3: (0, 1),  # NORTH
+                4: (-1, 1),  # NORTHWEST
+                5: (-1, 0),  # WEST
+                6: (-1, -1),  # SOUTHWEST
+                7: (0, -1),  # SOUTH
+                8: (1, -1)  # SOUTHEAST
+            }
+
     # # def scanForAgent(self):
     # #     agent_pos = (-1, -1)
     # #     agent_last = (-1, -1)
@@ -124,27 +136,15 @@ class State(object):
     #    -1: out of bounds
     #    -2: collision with wall
         def sample_action(self):
-    #sampling actions
+        # sampling actions
         return self.action_space.sample()
 
     def get_action_data(self, action):
     #return data
         return action
 
-    TRANSLATION_DIRECTIONS = {
-        0: (0, 0),  # STAY
-        1: (1, 0),  # EAST
-        2: (1, 1),  # NORTHEAST
-        3: (0, 1),  # NORTH
-        4: (-1, 1),  # NORTHWEST
-        5: (-1, 0),  # WEST
-        6: (-1, -1),  # SOUTHWEST
-        7: (0, -1),  # SOUTH
-        8: (1, -1)  # SOUTHEAST
-    }
-
-    def get_new_pos_and_rotation_from_action(current_pos, action):
-        translation = TRANSLATION_DIRECTIONS[action[0]]
+    def get_new_pos_and_rotation_from_action(self, current_pos, action):
+        translation = self.translation_directions[action[0]]
         rotation = action[1]
         new_pos = (current_pos[0] + translation[0], current_pos[1] + translation[1])
         return new_pos, rotation
