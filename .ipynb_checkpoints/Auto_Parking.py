@@ -40,9 +40,9 @@ class State(object):
             self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
             self.renderHitBox()
             self.num_translation_actions = 9
-            #0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
+            # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
-            #0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
+            # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
 
             self.action_space = spaces.Tuple((
                 spaces.Discrete(self.num_translation_actions),
@@ -90,15 +90,15 @@ class State(object):
     # try to move agent and return the status
     def moveAgent(self, action):
         # action is a list. Its first element is destination,
-        # And its second element is desired heading
-        destination, heading = action[0], action[1]
+        # And its second element is desired next_dir
+        next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
         # Not moving is always allowed
-        if destination == self.agent_pos and heading == self.direction:
+        if next_pos == self.agent_pos and next_dir == self.direction:
             return 0
 
         # Otherwise, let's look at the validity of the move
-        hitbox_index = self.getHitBox(destination, heading)
+        hitbox_index = self.getHitBox(next_pos, next_dir)
         is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
@@ -115,9 +115,9 @@ class State(object):
 
         # No collision: we can carry out the action
         self.pos[self.agent_pos] = -1
-        self.agent_pos = destination
-        self.direction = heading
-        self.pos[self.agent_pos] = heading
+        self.agent_pos = next_pos
+        self.direction = next_dir
+        self.pos[self.agent_pos] = next_dir
         self.hitbox_index = hitbox_index
         self.renderHitBox()
 
@@ -135,18 +135,18 @@ class State(object):
     #     0: action executed
     #    -1: out of bounds
     #    -2: collision with wall
-        def sample_action(self):
-        # sampling actions
+    def sample_action(self):
+    # sampling actions
         return self.action_space.sample()
 
     def get_action_data(self, action):
-    #return data
+        # return data
         return action
 
-    def get_new_pos_and_rotation_from_action(self, current_pos, action):
+    def get_new_pos_and_rotation_from_action(self, action):
         translation = self.translation_directions[action[0]]
         rotation = action[1]
-        new_pos = (current_pos[0] + translation[0], current_pos[1] + translation[1])
+        new_pos = (self.agent_pos[0] + translation[0], self.agent_pos[1] + translation[1])
         return new_pos, rotation
 
     # def getDir(self, action):

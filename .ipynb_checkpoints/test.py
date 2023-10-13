@@ -14,7 +14,7 @@ B[2, 2] = 0
 
 S = Auto_Parking.State(A, B, [1, 1, 1])
 
-a = [[2, 2], 1]
+a = [2, 0]
 
 print(S.shape1)
 
