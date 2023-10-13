@@ -37,8 +37,7 @@ class State(object):
             self.agent_pos, self.direction = self.getPos()
             self.shape0, self.shape1 = self.getShape(carSize)
             self.hitbox_index = self.getHitBox(self.agent_pos, self.direction)
-            self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
-            self.renderHitBox()
+            self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
@@ -119,7 +118,7 @@ class State(object):
         self.direction = next_dir
         self.pos[self.agent_pos] = next_dir
         self.hitbox_index = hitbox_index
-        self.renderHitBox()
+        self.hitbox = self.renderHitBox()
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
@@ -230,9 +229,10 @@ class State(object):
         return hitbox_index
 
     def renderHitBox(self):
-        self.hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
+        hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
         for i in range(len(self.hitbox_index)):
             index0 = self.hitbox_index[i][0]
             index1 = self.hitbox_index[i][1]
-            self.hitbox[index0, index1] = 1
+            hitbox[index0, index1] = 1
+        return hitbox
     
