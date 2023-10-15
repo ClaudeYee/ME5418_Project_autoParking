@@ -8,7 +8,9 @@ import time
 import random
 import math
 import copy
-from gym.envs.classic_control import rendering
+# from gym.envs.classic_control import rendering
+
+from parameter import *
 
 '''
     Observation: (position maps of current agent, current goal, obstacles), vector to goal (vx, vy, norm_v)
@@ -30,18 +32,20 @@ ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
 class State(object):
 
-    def __init__(self, world0, pos, carSize):
+    def __init__(self, world0, pos, dir, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
             self.pos = pos.copy()
-            self.robot_state = self.getPos()
-            self.shape0, self.shape1 = self.getShape(carSize)
-            self.hitbox_index = self.getHitBox(self.robot_state[0], self.robot_state[1])
+            self.dir = dir
+            self.robot_state = self.getState()      # TODO: This might not be needed later.
+            self.robot_size = carSize
+            self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
+            self.hitbox_index = self.getHitBox_index(self.pos[0], self.pos[1])
             self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
-            # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
+            # 0: Stay, 1: 0, 2: 45, 3: 90, 4: 135, 5: 180, 6: 225, 7: 270, 8: 315 (degree)
 
             self.action_space = spaces.Tuple((
                 spaces.Discrete(self.num_translation_actions),
@@ -79,12 +83,12 @@ class State(object):
     # def setDirection(self, direction):
     #     self.direction = direction
 
-    def getPos(self):
+    def getState(self):
         size = [np.size(self.pos, 0), np.size(self.pos, 1)]
         for i in range(size[0]):
             for j in range(size[0]):
                 if self.pos[i, j] != -1:
-                    return [[i, j], self.pos[i, j]]
+                    return [[i, j], self.pos[i, j], self.dir]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
 
     # try to move agent and return the status
     def moveAgent(self, action):
@@ -159,7 +163,8 @@ class State(object):
     # The vector is the index of a pixel, which the vehicle occupies
     # This function will generate 2 hitboxes, others will be obtained
     # by a simple rotate & translation transformation
-    def getShape(self, carShape):
+    # TODO: I suggest this this function should take in the carSize and its direction to determine the output, which is whether shape0 or shape1
+    def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
         shape0 = []
@@ -168,8 +173,8 @@ class State(object):
         # carShape is a three element tuple
         # The first one element is the distant from the centre to the front edge of car
         # The second is the distant to rear edge, the third is to left/right edge
-        for i in range(-1 * carShape[2], carShape[2] + 1, 1):
-            for j in range(-1 * carShape[1], carShape[0] + 1, 1):
+        for i in range(-1 * carSize[2], carSize[2] + 1, 1):
+            for j in range(-1 * carSize[1], carSize[0] + 1, 1):
                 shape0.append([i, j])
 
         # calculate the max possible size after rotation
@@ -191,11 +196,11 @@ class State(object):
                     (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
                     # if so, add to shape1
                     shape1.append([x, y])
-
+        # TODO: I am not sure why there are two outputs
         return shape0, shape1
 
     # Calculate the hitbox
-    def getHitBox(self, pos, dir):
+    def getHitBox_index(self, pos, dir):
         # desired position and direction
         agent_pos = pos
         agent_dir = dir
@@ -204,11 +209,11 @@ class State(object):
         hitbox_index = []
 
         # See if direction is tilted
-        # If not, use Shape1
+        # If not, use Shape0
         if agent_dir % 2 == 0:
             shape = self.shape0
             angle = agent_dir / 2 * np.pi
-        # Else, use Shape2
+        # Else, use Shape1
         else:
             shape = self.shape1
             angle = (agent_dir - 1) / 2 * np.pi
@@ -235,4 +240,136 @@ class State(object):
             index1 = self.hitbox_index[i][1]
             hitbox[index0, index1] = 1
         return hitbox
-    
+
+
+class AutoPark_Env(gym.Env):
+    def __init__(self, world0, plot=False, blank_world=False):          # blank_world: there is no robot and any parking lots
+        self.world_size = WORLD_SIZE
+        self.robot_size = ROBOT_SIZE
+        self.parklot_size = PARKLOT_SIZE
+
+        self.world_obs = None
+        self.world_pklot = None
+        self.world_robot = None
+        self.world = None  # world has two channels: world_obs, world_pklot, world_robot. (3, 40, 40)
+
+        self.init_robot_pos = None
+        self.init_robot_dir = None
+
+        self.robot_pos = None
+        self.robot_dir = None
+
+        self.init_world(world0)
+        self.init_robot_state = None  # might have some problems here
+
+        self.done = False
+
+
+    # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
+    def init_world(self, world0):
+        if world0:
+            world = world0.copy()
+        else:
+            self.world_obs = self.init_obstacles(PROB, self.world_size)       # the obstacle channel of the world
+            self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
+            self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
+
+            self.world = np.array([self.world_obs, self.world_pklot, self.robot_pos])
+
+    def init_obstacles(self, prob, size):
+        obs_prob = np.random.triangular(prob[0], 0.33 * prob[0] + 0.66 * prob[1], prob[1])
+        obs_size = np.random.choice([size[0], size[0] * 0.5 + size[1] * 0.5, size[1]], p=[0.5, 0.25, 0.25])
+        world_obs = - (np.random.rand(int(obs_size), int(obs_size)) < obs_prob).astype(int)
+        return world_obs
+
+    def init_parkinglots(self, world_size, parklot_size):
+        world_pklot = np.zeros(world_size)
+        parklot_dir_dic = {0: "hor", 1: "ver"}                  # There are two selections for the direction of the 2 parking lots: hor: horizontal, ver: vertical
+        # the direction of the parking lots are randomly selected from whether horizontal or vertical
+        pklot_1_dir = random.choice([0, 1])
+        pklot_2_dir = random.choice([0, 1])
+
+        # return a matrix with all of the elements are 1 or 2, shape is the size of the parking lot
+        def parklot_generate(dir, num, size):
+            if dir == 0:
+                return num * np.ones(size)
+            elif dir == 1:
+                return num * np.transpose(np.ones(size))
+            else:
+                return None
+
+        pklot_1 = parklot_generate(pklot_1_dir, 1, parklot_size)
+        pklot_2 = parklot_generate(pklot_2_dir, 2, parklot_size)
+        pklot_world = np.zeros(world_size)
+
+        # Place pklot_1 into the world
+        x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot_1.shape[0] + 1), np.random.randint(0, pklot_world.shape[1] -
+                                   pklot_1.shape[1] + 1)
+        pklot_world[x1:x1 + pklot_1.shape[0], y1:y1 + pklot_1.shape[1]] = pklot_1
+
+        # Randomly choose positions for matrix2, ensuring no overlap with matrix1
+        while True:
+            x2, y2 = np.random.randint(0, pklot_world.shape[0] - pklot_2.shape[0] + 1), np.random.randint(0, pklot_world.shape[1] -
+                                   pklot_2.shape[1] + 1)
+            if np.all(pklot_world[x2:x2 + pklot_2.shape[0], y2:y2 + pklot_2.shape[1]] == 0):
+                pklot_world[x2:x2 + pklot_2.shape[0], y2:y2 + pklot_2.shape[1]] = pklot_2
+                break
+
+        if check_available(pklot_2, self.world_obs):
+            return pklot_world
+        else:
+            self.init_parkinglots(world_size, parklot_size)
+
+    # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
+    def init_robot(self, world):
+        ## pos_x and pos_y refer to the center point coordinate of the robot
+        pos_x, pos_y = np.random.randint(0, world.shape[0]), np.random.randint(0, world.shape[1])
+        # randomly generate a heading of the robot
+        dir = random.randint(0, 7)
+
+        init_robot_pos = [pos_x, pos_y]
+        init_robot_dir = dir
+        self.init_robot_state = State(world, init_robot_pos, init_robot_dir)
+        init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
+        init_hitbox = self.init_robot_state.hitbox
+
+        # determine whether the robot center has been placed in the free space
+        # TODO: this is defined in robot channel of the whole map (there are other channels)
+        if world[pos_x, pos_y] == 0 and check_available(init_hitbox, world):
+            init_robot_pos = [pos_x, pos_y]
+            init_robot_dir = dir
+            init_robot_hitbox = init_hitbox
+            return init_robot_pos, init_robot_dir, init_robot_hitbox
+        else:
+            self.init_robot(world)
+
+    def step(self):
+        def check_action_valid(action):
+
+    def reset(self):
+        pass
+
+    def getObstacleWorld(self):
+        print(self.world_obs)
+
+    def getParklotWorld(self):
+        print(self.world_pklot)
+
+    def getRobotWorld(self):
+        print(self.world_robot)
+
+    # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
+    def act(self, actions):
+        pass
+
+    def plot_env(self):
+        pass
+
+
+def check_available(target, world):  # check whether the target area with such position and direction can be placed in the world
+    for i in range(target.shape[0]):
+        for j in range(target.shape[1]):
+            if target[i][j] == world[i][j] == 1:
+                return False
+        break
+    return True

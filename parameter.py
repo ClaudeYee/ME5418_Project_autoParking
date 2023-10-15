@@ -1,0 +1,4 @@
+ROBOT_SIZE = [3, 5]
+PARKLOT_SIZE = [5, 8]
+WORLD_SIZE = [40, 40]
+PROB = [0.3, 0.5]
