@@ -23,7 +23,7 @@ from parameter import *
     Reward: ACTION_COST for each action, GOAL_REWARD when robot arrives at target
 '''
 
-ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
+ACTION_COST, IDLE_COST, CLOSER_REWARD, GOAL_REWARD= -0.1, -0.2, 0.3, 1.0
 
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
@@ -145,14 +145,6 @@ class State(object):
         self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
         self.hitbox = self.renderHitBox()
 
-
-    # try to execute action and return whether action was executed or not and why
-    # returns:
-    #     2: action executed and reached goal
-    #     1: action executed
-    #     0: action executed ==> no moving
-    #    -1: out of bounds
-    #    -2: collision with wall
     def sample_action(self):
     # sampling actions
         return self.action_space.sample()
@@ -275,10 +267,14 @@ class AutoPark_Env(gym.Env):
         self.robot_pos = None
         self.robot_dir = None
 
+        self.pklot1_pos = None
+        self.pklot2_pos = None
+
         self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
 
         self.reward = 0
+        self.episode_length = 2000
 
         self.done = False
 
@@ -343,7 +339,12 @@ class AutoPark_Env(gym.Env):
                 break
 
         if check_available(pklot1, self.world_obs) and check_available(pklot2, self.world_obs):
+
+            self.pklot1_pos = [(2* x1 + pklot1.shape[0])/2, (2* y1 + pklot1.shape[1])/2]
+            self.pklot2_pos = [(2* x2 + pklot2.shape[0])/2, (2* y2 + pklot2.shape[1])/2]
+
             return pklot_world
+
         else:
             self.init_parkinglots(world_size, parklot_size)
 
@@ -372,27 +373,59 @@ class AutoPark_Env(gym.Env):
 
     def step(self, action):
 
-        # Apply the action
-        robot_state = self.init_robot_state
-        self.reward += ACTION_COST
-        action_outcome = robot_state.moveAgent(self, action)
+        # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
+        # and change the state of our robot and the different parameters accordingly
+        if self.episode_length >0:
 
-        if action_outcome < 0:
-            self.reward += COLLISION_REWARD
-            self.reset()
+            self.episode_length -= 1
 
-        elif action_outcome == 2:
-            self.reward += GOAL_REWARD
-            next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
-            self.init_robot_state = State(self.world, next_pos, next_dir)
-            self.done = True
+            # Apply the action
+            robot_state = self.init_robot_state
+            action_validity = robot_state.moveValidity(self, action)
 
-        elif action_outcome == 1:
-            next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
-            self.init_robot_state = State(self.world, next_pos, next_dir)
+            # If the action is not valid aka it leads to collision or out of bound move or if the action is not to move
+            # then the robot don't move and nothing changes in the world
+            if action_validity <= 0:
+                self.reward += IDLE_COST
 
+            # If the action is valid and does not lead to the completion of the mission the robot move one step and is
+            # reward accordingly
+            elif action_validity == 1:
+
+                pre_dist1 = np.linalg.norm(self.robot_pos - self.pklot1_pos)
+                pre_dist2 = np.linalg.norm(self.robot_pos - self.pklot2_pos)
+
+                robot_state.moveAgent(self, action)
+                next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
+
+                post_dist1 = np.linalg.norm(next_pos - self.pklot1_pos)
+                post_dist2 = np.linalg.norm(next_pos - self.pklot2_pos)
+
+                self.reward += ACTION_COST
+                # If the robot is getting closer to one of the parking lot after the move
+                # it is rewarded if not it is punished
+                if (pre_dist1 > post_dist1) or (pre_dist2 > post_dist2):
+                    self.reward += CLOSER_REWARD
+                else:
+                    self.reward -= CLOSER_REWARD
+
+                self.init_robot_state = State(self.world, next_pos, next_dir)
+
+            # If the action is valid and lead to the completion of the mission the robot move one step and is
+            # reward accordingly and the mission is completed and the done parameter is changed to True to indicate
+            # the mission is done and the episode can be reset
+            else:
+                self.reward += ACTION_COST
+                self.reward += GOAL_REWARD
+                robot_state.moveAgent(self, action)
+                next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
+                self.init_robot_state = State(self.world, next_pos, next_dir)
+                self.done = True
+
+        # If the time step is exhausted the episode will be stopped no matter if the mission is completed or not and
+        # the environment and episode will both be reset
         else:
-            self.reward += IDLE_COST
+            self.done = True
 
     def reset(self):
         pass
