@@ -118,11 +118,7 @@ class State(object):
             elif self.state[x, y] != 0:
                 is_in_parking_space.append(self.state[x, y])
 
-        # No collision: we can carry out the action in next_pos & robot_state
-        self.next_pos[self.robot_next_state[0]] = -1
-        self.robot_next_state[0] = next_pos
-        self.robot_next_state[1] = next_dir
-        self.next_pos[self.robot_next_state[0]] = next_dir
+
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
@@ -133,6 +129,14 @@ class State(object):
         return 1
 
     def moveAgent(self, action):
+        next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
+
+        # Valid move: we can carry out the action in next_pos & robot_state
+        self.next_pos[self.robot_next_state[0]] = -1
+        self.robot_next_state[0] = next_pos
+        self.robot_next_state[1] = next_dir
+        self.next_pos[self.robot_next_state[0]] = next_dir
+
         # refresh robot_current_state & current_pos
         self.robot_current_state = self.robot_next_state.copy()
         self.current_pos = self.next_pos.copy()
