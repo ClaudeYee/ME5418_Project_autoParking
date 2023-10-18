@@ -36,11 +36,13 @@ class State(object):
     def __init__(self, world0, pos, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
-            self.pos = pos.copy()
-            self.robot_state = self.getState()      # TODO: This might not be needed later.
+            self.current_pos = pos.copy()
+            self.next_pos = np.zeros(WORLD_SIZE)
+            self.robot_current_state = self.getState()      # TODO: This might not be needed later.
+            self.robot_next_state = [[0, 0], 0]
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.hitbox_index = self.getHitBox_index(self.robot_state[0], self.robot_state[1])
+            self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
             self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
@@ -84,20 +86,20 @@ class State(object):
     #     self.direction = direction
 
     def getState(self):
-        size = [np.size(self.pos, 0), np.size(self.pos, 1)]
+        size = [np.size(self.current_pos, 0), np.size(self.current_pos, 1)]
         for i in range(size[0]):
             for j in range(size[0]):
-                if self.pos[i, j] != -1:
-                    return [[i, j], self.pos[i, j]]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
+                if self.current_pos[i, j] != -1:
+                    return [[i, j], self.current_pos[i, j]]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
 
     # try to move agent and return the status
-    def moveAgent(self, action):
+    def moveValidity(self, action):
         # action is a list. Its first element is destination,
         # And its second element is desired next_dir
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
         # Not moving is always allowed
-        if next_pos == self.robot_state[0] and next_dir == self.robot_state[1]:
+        if next_pos == self.robot_current_state[0] and next_dir == self.robot_current_state[1]:
             return 0
 
         # Otherwise, let's look at the validity of the move
@@ -116,21 +118,29 @@ class State(object):
             elif self.state[x, y] != 0:
                 is_in_parking_space.append(self.state[x, y])
 
-        # No collision: we can carry out the action
-        self.pos[self.robot_state[0]] = -1
-        self.robot_state[0] = next_pos
-        self.robot_state[1] = next_dir
-        self.pos[self.robot_state[0]] = next_dir
-        self.hitbox_index = hitbox_index
-        self.hitbox = self.renderHitBox()
+        # No collision: we can carry out the action in next_pos & robot_state
+        self.next_pos[self.robot_next_state[0]] = -1
+        self.robot_next_state[0] = next_pos
+        self.robot_next_state[1] = next_dir
+        self.next_pos[self.robot_next_state[0]] = next_dir
 
         # See if every pixel is in the same parking space
         # If so, then our car parked in its space
         if len(is_in_parking_space) == len(hitbox_index):
-            return 2 * int(is_in_parking_space[0])
+            return int(is_in_parking_space[0])
 
         # none of the above
         return 1
+
+    def moveAgent(self, action):
+        # refresh robot_current_state & current_pos
+        self.robot_current_state = self.robot_next_state.copy()
+        self.current_pos = self.next_pos.copy()
+
+        #
+        self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+        self.hitbox = self.renderHitBox()
+
 
     # try to execute action and return whether action was executed or not and why
     # returns:
@@ -150,7 +160,7 @@ class State(object):
     def get_new_pos_and_rotation_from_action(self, action):
         translation = self.translation_directions[action[0]]
         rotation = action[1]
-        new_pos = (self.robot_state[0][0] + translation[0], self.robot_state[0][1] + translation[1])
+        new_pos = (self.robot_current_state[0][0] + translation[0], self.robot_current_state[0][1] + translation[1])
         return new_pos, rotation
 
     # def getDir(self, action):
