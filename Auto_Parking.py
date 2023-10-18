@@ -33,11 +33,10 @@ ACTION_COST, IDLE_COST, GOAL_REWARD, COLLISION_REWARD = -0.1, -0.2, 1.0, -1.0
 
 class State(object):
 
-    def __init__(self, world0, pos, dir, carSize=ROBOT_SIZE):
+    def __init__(self, world0, pos, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
             self.pos = pos.copy()
-            self.dir = dir
             self.robot_state = self.getState()      # TODO: This might not be needed later.
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
@@ -89,7 +88,7 @@ class State(object):
         for i in range(size[0]):
             for j in range(size[0]):
                 if self.pos[i, j] != -1:
-                    return [[i, j], self.pos[i, j], self.dir]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
+                    return [[i, j], self.pos[i, j]]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
 
     # try to move agent and return the status
     def moveAgent(self, action):
