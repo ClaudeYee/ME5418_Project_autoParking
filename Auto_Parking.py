@@ -37,13 +37,15 @@ class State(object):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
             self.current_pos = pos.copy()
-            self.next_pos = np.zeros(WORLD_SIZE)
+            self.next_pos = self.current_pos.copy()
             self.robot_current_state = self.getState()      # TODO: This might not be needed later.
-            self.robot_next_state = [[0, 0], 0]
+            self.robot_next_state = self.robot_current_state.copy
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-            self.hitbox = self.renderHitBox()
+            self.current_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            self.current_hitbox = self.renderHitBox()
+            self.next_hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
@@ -130,6 +132,8 @@ class State(object):
         # refresh robot_current_state & current_pos
         self.robot_current_state = self.robot_next_state.copy()
         self.current_pos = self.next_pos.copy()
+        self.current_hitbox = self.next_hitbox.copy()
+        self.current_hitbox_index = self.next_hitbox_index.copy()
 
         # Calculate next position
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
@@ -141,8 +145,8 @@ class State(object):
         self.next_pos[self.robot_next_state[0]] = next_dir
 
         #
-        self.hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
-        self.hitbox = self.renderHitBox()
+        self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
+        self.next_hitbox = self.renderHitBox()
 
 
     # try to execute action and return whether action was executed or not and why
@@ -250,9 +254,9 @@ class State(object):
 
     def renderHitBox(self):
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
-        for i in range(len(self.hitbox_index)):
-            index0 = self.hitbox_index[i][0]
-            index1 = self.hitbox_index[i][1]
+        for i in range(len(self.next_hitbox_index)):
+            index0 = self.next_hitbox_index[i][0]
+            index1 = self.next_hitbox_index[i][1]
             hitbox[index0, index1] = 1
         return hitbox
 
