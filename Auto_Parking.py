@@ -9,6 +9,7 @@ import random
 import math
 import copy
 # from gym.envs.classic_control import rendering
+from obs_world_generator import generate_obs
 
 from parameter import *
 
@@ -280,10 +281,8 @@ class AutoPark_Env(gym.Env):
 
             self.world = np.array([self.world_obs, self.world_pklot, self.robot_pos])
 
-    def init_obstacles(self, prob, size):
-        obs_prob = np.random.triangular(prob[0], 0.33 * prob[0] + 0.66 * prob[1], prob[1])
-        world_obs = - (np.random.rand(int(size[0]), int(size[1])) < obs_prob).astype(int)
-        return world_obs
+    def init_obstacles(self, size):
+        generate_obs(size)
 
     def init_parkinglots(self, world_size, parklot_size):
         # Create the parking world
