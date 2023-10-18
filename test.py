@@ -1,5 +1,6 @@
 import Auto_Parking
 import numpy as np
+import matplotlib.pyplot as plt
 
 A = np.zeros([5, 5])
 B = np.full((5, 5), -1)
@@ -22,3 +23,6 @@ print(S.moveAgent(a))
 
 print(S.hitbox)
 print(S.state)
+
+plt.imshow(S.state)
+plt.show()

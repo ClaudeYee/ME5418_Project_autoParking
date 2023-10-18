@@ -40,7 +40,7 @@ class State(object):
             self.robot_state = self.getState()      # TODO: This might not be needed later.
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.hitbox_index = self.getHitBox_index(self.pos[0], self.pos[1])
+            self.hitbox_index = self.getHitBox_index(self.robot_state[0], self.robot_state[1])
             self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
@@ -101,7 +101,7 @@ class State(object):
             return 0
 
         # Otherwise, let's look at the validity of the move
-        hitbox_index = self.getHitBox(next_pos, next_dir)
+        hitbox_index = self.getHitBox_index(next_pos, next_dir)
         is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
@@ -168,14 +168,15 @@ class State(object):
     def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
+        carShape = [int((carSize[0]-1)/2), int((carSize[1]-1)/2), int((carSize[1]-1)/2)]
         shape0 = []
         shape1 = []
 
         # carShape is a three element tuple
         # The first one element is the distant from the centre to the front edge of car
         # The second is the distant to rear edge, the third is to left/right edge
-        for i in range(-1 * carSize[2], carSize[2] + 1, 1):
-            for j in range(-1 * carSize[1], carSize[0] + 1, 1):
+        for i in range(-1 * carShape[2], carShape[2] + 1, 1):
+            for j in range(-1 * carShape[1], carShape[0] + 1, 1):
                 shape0.append([i, j])
 
         # calculate the max possible size after rotation
