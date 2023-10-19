@@ -24,8 +24,8 @@ a = [6, 0]
 
 # print(S.shape1)
 #
-# print(S.moveAgent(a))
-#
+print(S.moveValidity(a))
+S.moveAgent(a)
 # print(S.hitbox)
 # print(S.state)
 
@@ -52,7 +52,7 @@ def update(frame):
     rotateMatrix = np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
     l = np.array([ROBOT_SIZE[1], ROBOT_SIZE[0]]) / 2
-    rotated_center = np.array(S.robot_state[0]) - np.array(l).dot(rotateMatrix)
+    rotated_center = np.array(S.robot_next_state[0]) - np.array(l).dot(rotateMatrix)
 
     # rectangle = patches.Rectangle(rotated_center, ROBOT_SIZE[1], ROBOT_SIZE[0], angle=-angle, color='r')
     angle = -angle + 360
