@@ -148,10 +148,6 @@ class State(object):
 
         return int(n)
 
-
-
-
-
     def sample_action(self):
     # sampling actions
         return self.action_space.sample()
