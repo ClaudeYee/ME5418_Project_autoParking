@@ -23,29 +23,26 @@ from parameter import *
     Reward: ACTION_COST for each action, GOAL_REWARD when robot arrives at target
 '''
 
-ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD= -0.1, -0.2, 0.3, 1.0
+ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2, 0.3, 1.0, 40
 
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
 # dirDict = {0:(0,0),1:(0,1),2:(1,0),3:(0,-1),4:(-1,0),5:(1,1),6:(1,-1),7:(-1,-1),8:(-1,1)}
 # actionDict={v:k for k,v in dirDict.items()}
 
-
-class State(object):
-
-    def __init__(self, world0, pos, carSize=ROBOT_SIZE):
+class State():
+    def __init__(self, world0, pos, dir, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
-            self.current_pos = pos.copy()
+            self.current_pos = pos
+            self.current_dir = dir
             self.next_pos = np.zeros(WORLD_SIZE)
             self.robot_current_state = self.getState()      # TODO: This might not be needed later.
             self.robot_next_state = [[0, 0], 0]
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-            self.next_hitbox = self.renderHitBox()
-            self.current_hitbox_index = self.next_hitbox_index.copy()
-            self.current_hitbox = self.next_hitbox.copy()
+            self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
@@ -106,6 +103,7 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         hitbox_index = self.getHitBox_index(next_pos, next_dir)
+        is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
@@ -116,17 +114,25 @@ class State(object):
             if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
+            elif self.state[x, y] != 0:
+                is_in_parking_space.append(self.state[x, y])
+
+
+
+        # See if every pixel is in the same parking space
+        # If so, then our car parked in its space
+        if len(is_in_parking_space) == len(hitbox_index):
+            return int(is_in_parking_space[0])
+
         # none of the above
-        return 0
+        return 1
 
     def moveAgent(self, action):
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
-        # refresh current state, pos & hitbox
+        # refresh robot_current_state & current_pos
         self.robot_current_state = self.robot_next_state.copy()
         self.current_pos = self.next_pos.copy()
-        self.current_hitbox_index = self.next_hitbox_index.copy()
-        self.current_hitbox = self.next_hitbox.copy()
 
         # Valid move: we can carry out the action in next_pos & robot_state
         self.next_pos[self.robot_next_state[0]] = -1
@@ -134,19 +140,9 @@ class State(object):
         self.robot_next_state[1] = next_dir
         self.next_pos[self.robot_next_state[0]] = next_dir
 
-        # get next hitbox
-        self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
-        self.next_hitbox = self.renderHitBox()
-
-        # check if agent is in one parking space
-        for i in range(len(self.next_hitbox_index)):
-            x, y = self.next_hitbox_index[i][0], self.next_hitbox_index[i][1]
-            n = self.next_hitbox[x,y]
-
-            if n == 0:
-                return 0
-
-        return int(n)
+        #
+        self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+        self.hitbox = self.renderHitBox()
 
     def sample_action(self):
     # sampling actions
@@ -177,7 +173,7 @@ class State(object):
     def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
-        carShape = [int((carSize[1]-1)/2), int((carSize[1]-1)/2), int((carSize[0]-1)/2)]
+        carShape = [int((carSize[0]-1)/2), int((carSize[1]-1)/2), int((carSize[1]-1)/2)]
         shape0 = []
         shape1 = []
 
@@ -246,9 +242,9 @@ class State(object):
 
     def renderHitBox(self):
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
-        for i in range(len(self.next_hitbox_index)):
-            index0 = self.next_hitbox_index[i][0]
-            index1 = self.next_hitbox_index[i][1]
+        for i in range(len(self.hitbox_index)):
+            index0 = self.hitbox_index[i][0]
+            index1 = self.hitbox_index[i][1]
             hitbox[index0, index1] = 1
         return hitbox
 
@@ -259,6 +255,9 @@ class AutoPark_Env(gym.Env):
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
 
+        # tunable parameters for dist_reward
+        # self.dist_reward_param = DIST_REWARD_PARAM1
+
         self.world_obs = None
         self.world_pklot = None
         self.world_robot = None
@@ -267,8 +266,8 @@ class AutoPark_Env(gym.Env):
         self.init_robot_pos = None
         self.init_robot_dir = None
 
-        self.robot_pos = None
-        self.robot_dir = None
+        # self.robot_pos = None
+        # self.robot_dir = None
 
         self.pklot1_pos = None
         self.pklot2_pos = None
@@ -276,25 +275,25 @@ class AutoPark_Env(gym.Env):
         self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
 
-        self.reward = 0
+        self.accumulated_reward = 0
         self.episode_length = 200
 
         self.done = False
-
 
     # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
     def init_world(self, world0):
         if world0:
             world = world0.copy()
         else:
-            self.world_obs = self.init_obstacles(PROB, self.world_size)       # the obstacle channel of the world
+            self.world_obs = self.init_obstacles(self.world_size)       # the obstacle channel of the world
             self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
             self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
 
             self.world = np.array([self.world_obs, self.world_pklot, self.robot_pos])
 
     def init_obstacles(self, size):
-        generate_obs(size)
+        world_obs = generate_obs(size)
+        return world_obs
 
     def init_parkinglots(self, world_size, parklot_size):
         # Create the parking world
@@ -374,72 +373,128 @@ class AutoPark_Env(gym.Env):
         else:
             self.init_robot(world)
 
-    def step(self, action):
-
+    def step(self, robot_state, done=False):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
         # and change the state of our robot and the different parameters accordingly
-        if self.episode_length > 0:
+        ## For now, randomly sample an action from the valid action space for testing without training
+        current_robot_state = robot_state
+        action = select_valid_action(current_robot_state)
+        self.save_action(action)
+        # TODO: based on this line, modify moveAgent()
+        # robot_state transition
+        next_robot_state = robot_state.moveAgent(action)
+        next_robot_pos, next_robot_dir = robot_state.get_new_pos_and_rotation_from_action(action)
+        # TODO: based on this line, modify the function to return which parking lot it reaches, if the task is complete.
+        if next_robot_state.parking_complete() == 1 or next_robot_state.parking_complete() == 2:
+            done = True
+        # robot receives reward after conducting an action
+        reward = self.compute_reward(next_robot_pos, next_robot_dir, done)
 
+        return next_robot_state, reward, done
             # Check the action
-            robot_state = self.init_robot_state
-            action_validity = robot_state.moveValidity(self, action)
-
+            # action_validity = robot_state.moveValidity(self, action)
             # If the move is not valid (ie out of bond or collision) the robot needs to select another action
             # as part of this same step and without getting punished or rewarded
-            if action_validity < 0:
-                new_action = robot_state.sample_action()
-                self.step(new_action)
+            # if action_validity < 0:
+            #     action = robot_state.sample_action()
 
             # If the move is valid
-            else:
-                # No matter the outcome of the move these need to be updated in the same way
-                self.episode_length -= 1
-                robot_state.moveAgent(self, action)
-                next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
-
-                # If the action is valid and does not lead to the completion of the mission the robot and consists only
-                # in the robot turning without moving, the robot complete the turn and is rewarded accordingly
-                if action_validity == 0:
-                    self.reward += TURNING_COST
-
-                # If the action is valid and does not lead to the completion of the mission but the robot move
-                # it will complete the move and is rewarded accordingly depending on whether it get closer or
-                # not to one of the parking lot
-                elif action_validity == 1:
-                    pre_dist1 = np.linalg.norm(self.robot_pos - self.pklot1_pos)
-                    pre_dist2 = np.linalg.norm(self.robot_pos - self.pklot2_pos)
-
-                    post_dist1 = np.linalg.norm(next_pos - self.pklot1_pos)
-                    post_dist2 = np.linalg.norm(next_pos - self.pklot2_pos)
-
-                    self.reward += ACTION_COST
-
-                    # If the robot is getting closer to one of the parking lot after the move
-                    # it is rewarded if not it is punished
-                    if (pre_dist1 > post_dist1) or (pre_dist2 > post_dist2):
-                        self.reward += CLOSER_REWARD
-                    else:
-                        self.reward -= CLOSER_REWARD
-
-                # If the action is valid and lead to the completion of the mission the robot move one step and is
-                # reward accordingly and the mission is completed and the done parameter is changed to True to indicate
-                # the mission is done and the episode can be reset
-                else:
-                    self.reward += ACTION_COST
-                    self.reward += GOAL_REWARD
-                    self.done = True
-
-                # Update the state after the action is completed and the reward is given
-                self.init_robot_state = State(self.world, next_pos, next_dir)
+            # else:
+            #     # No matter the outcome of the move these need to be updated in the same way
+            #     self.episode_length -= 1
+            #     robot_state.moveAgent(self, action)
+            #     next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
+            #
+            #     # If the action is valid and does not lead to the completion of the mission the robot and consists only
+            #     # in the robot turning without moving, the robot complete the turn and is rewarded accordingly
+            #     if action_validity == 0:
+            #         self.reward += TURNING_COST
+            #
+            #     # If the action is valid and does not lead to the completion of the mission but the robot move
+            #     # it will complete the move and is rewarded accordingly depending on whether it get closer or
+            #     # not to one of the parking lot
+            #     elif action_validity == 1:
+            #         pre_dist1 = np.linalg.norm(self.robot_pos - self.pklot1_pos)
+            #         pre_dist2 = np.linalg.norm(self.robot_pos - self.pklot2_pos)
+            #
+            #         post_dist1 = np.linalg.norm(next_pos - self.pklot1_pos)
+            #         post_dist2 = np.linalg.norm(next_pos - self.pklot2_pos)
+            #
+            #         self.reward += ACTION_COST
+            #
+            #         # If the robot is getting closer to one of the parking lot after the move
+            #         # it is rewarded if not it is punished
+            #         if (pre_dist1 > post_dist1) or (pre_dist2 > post_dist2):
+            #             self.reward += CLOSER_REWARD
+            #         else:
+            #             self.reward -= CLOSER_REWARD
+            #
+            #     # If the action is valid and lead to the completion of the mission the robot move one step and is
+            #     # reward accordingly and the mission is completed and the done parameter is changed to True to indicate
+            #     # the mission is done and the episode can be reset
+            #     else:
+            #         self.reward += ACTION_COST
+            #         self.reward += GOAL_REWARD
+            #         self.done = True
+            #
+            #     # Update the state after the action is completed and the reward is given
+            #     self.init_robot_state = State(self.world, next_pos, next_dir)
 
         # If the time step is exhausted the episode will be stopped no matter if the mission is completed or not and
         # the environment and episode will both be reset
-        else:
-            self.done = True
+        # else:
+        #     self.done = True
 
-    def reset(self):
+    def run_episode(self):
+        done = False
+        robot_state = self.init_robot_state # start the first step from the init_robot_state, and set it as the robot_current_state
+        self.save_robot_state(robot_state)  # save the initial robot state
+        for _ in range(self.episode_length):
+            # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
+            robot_state, reward, done = self.step(robot_state, done)
+            self.accumulated_reward += reward
+            self.save_robot_state(robot_state)
+            self.save_reward(reward)
+            if done:
+                self.save_accumulated_reward(self.accumulated_reward)
+                print("The robot has successfully parked in the parking lot, task succeeded!")
+                break
+        if not done:
+            print("The steps in this episode have exceeded the episode length we set, task failed.")
+
+    # TODO: Let's define it later, because for now, the design of reward mechanism is not so important for env testing.
+    # TODO: NOTE: This part is extremely important for training the agent!!! It might be revised for many times.
+    def compute_reward(self, robot_pos, robot_dir, done):
+        # 1. Reward for task completion
+        if done:
+            final_reward = FINAL_REWARD   # if the robot successfully has parked into the the parking lot, it receives a very big reward
+            reward = final_reward
+        else:
+            # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking lot 2)
+            dist_to_pklot1 = np.linalg.norm(robot_pos - self.pklot1_pos)
+            dist_to_pklot2 = np.linalg.norm(robot_pos - self.pklot2_pos)
+            # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
+            dist_reward1 = self.dist_reward_param * (1 / dist_to_pklot1)
+            dist_reward2 = self.dist_reward_param * (1 / dist_to_pklot2)
+            # TODO: this must be refined later for the dist_reward, for now, just simply sum them up
+            dist_reward = dist_reward1 + dist_reward2
+            # 3. Penalty to punish the robot if it moves to much
+            negative_reward = ACTION_COST
+            reward = dist_reward + negative_reward
+        return reward
+
+    def save_robot_state(self, robot_state):
         pass
 
+    def save_reward(self, reward):
+        pass
+
+    def save_action(self, action):
+        pass
+
+    def save_accumulated_reward(self, accumulated_reward):
+        pass
+    
     def getObstacleWorld(self):
         print(self.world_obs)
 
@@ -449,12 +504,15 @@ class AutoPark_Env(gym.Env):
     def getRobotWorld(self):
         print(self.world_robot)
 
+
+
     # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
     def act(self, actions):
         pass
 
-    def plot_env(self):
-        pass
+    # Plot the environment for every step
+    def plot_env(self, save_path, step):
+
 
 
 def check_available(target, world):  # check whether the target area with such position and direction can be placed in the world
@@ -464,3 +522,12 @@ def check_available(target, world):  # check whether the target area with such p
                 return False
         break
     return True
+
+
+def select_valid_action(robot_state):
+    action = robot_state.sample_action()
+    action_validity = robot_state.moveValidity(action)
+    if action_validity < 0:
+        select_valid_action(robot_state)
+    else:
+        return action
