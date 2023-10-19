@@ -26,5 +26,6 @@ print(S.shape1)
 print(S.moveValidity(a))
 S.moveAgent(a)
 
-print(S.hitbox)
-print(S.state)
+print(S.current_hitbox)
+print(S.next_hitbox)
+# print(S.state)
