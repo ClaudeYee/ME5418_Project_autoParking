@@ -106,7 +106,6 @@ class State(object):
 
         # Otherwise, let's look at the validity of the move
         hitbox_index = self.getHitBox_index(next_pos, next_dir)
-        is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
@@ -117,18 +116,8 @@ class State(object):
             if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
-            elif self.state[x, y] != 0:
-                is_in_parking_space.append(self.state[x, y])
-
-
-
-        # See if every pixel is in the same parking space
-        # If so, then our car parked in its space
-        if len(is_in_parking_space) == len(hitbox_index):
-            return int(is_in_parking_space[0])
-
         # none of the above
-        return 1
+        return 0
 
     def moveAgent(self, action):
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
@@ -145,9 +134,25 @@ class State(object):
         self.robot_next_state[1] = next_dir
         self.next_pos[self.robot_next_state[0]] = next_dir
 
-        #
+        # get next hitbox
         self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
         self.next_hitbox = self.renderHitBox()
+
+        # check if agent is in one parking space
+        for i in range(len(self.next_hitbox_index)):
+            x, y = self.next_hitbox_index[i][0], self.next_hitbox_index[i][1]
+            n = self.next_hitbox[x,y]
+
+            if n == 0:
+                return 0
+            else:
+                is_in_parking_sapce = n
+
+        return int(n)
+
+
+
+
 
     def sample_action(self):
     # sampling actions

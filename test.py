@@ -24,7 +24,7 @@ a = [6, 0]
 
 print(S.shape1)
 print(S.moveValidity(a))
-S.moveAgent(a)
+print(S.moveAgent(a))
 
 print(S.current_hitbox)
 print(S.next_hitbox)
