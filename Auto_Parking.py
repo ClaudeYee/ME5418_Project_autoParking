@@ -145,6 +145,8 @@ class State(object):
 
             if n == 0:
                 return 0
+            else:
+                is_in_parking_sapce = n
 
         return int(n)
 
