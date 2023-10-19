@@ -41,10 +41,8 @@ class State():
             self.robot_next_state = [[0, 0], 0]
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-            self.next_hitbox = self.renderHitBox()
-            self.current_hitbox_index = self.next_hitbox_index.copy()
-            self.current_hitbox = self.next_hitbox.copy()
+            self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            self.hitbox = self.renderHitBox()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
@@ -105,6 +103,7 @@ class State():
 
         # Otherwise, let's look at the validity of the move
         hitbox_index = self.getHitBox_index(next_pos, next_dir)
+        is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
@@ -115,17 +114,25 @@ class State():
             if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
+            elif self.state[x, y] != 0:
+                is_in_parking_space.append(self.state[x, y])
+
+
+
+        # See if every pixel is in the same parking space
+        # If so, then our car parked in its space
+        if len(is_in_parking_space) == len(hitbox_index):
+            return int(is_in_parking_space[0])
+
         # none of the above
-        return 0
+        return 1
 
     def moveAgent(self, action):
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
-        # refresh current state, pos & hitbox
+        # refresh robot_current_state & current_pos
         self.robot_current_state = self.robot_next_state.copy()
         self.current_pos = self.next_pos.copy()
-        self.current_hitbox_index = self.next_hitbox_index.copy()
-        self.current_hitbox = self.next_hitbox.copy()
 
         # Valid move: we can carry out the action in next_pos & robot_state
         self.next_pos[self.robot_next_state[0]] = -1
@@ -133,25 +140,9 @@ class State():
         self.robot_next_state[1] = next_dir
         self.next_pos[self.robot_next_state[0]] = next_dir
 
-        # get next hitbox
-        self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
-        self.next_hitbox = self.renderHitBox()
-
-        # check if agent is in one parking space
-        for i in range(len(self.next_hitbox_index)):
-            x, y = self.next_hitbox_index[i][0], self.next_hitbox_index[i][1]
-            n = self.next_hitbox[x,y]
-
-            if n == 0:
-                return 0
-            else:
-                is_in_parking_sapce = n
-
-        return int(n)
-
-
-
-
+        #
+        self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+        self.hitbox = self.renderHitBox()
 
     def sample_action(self):
     # sampling actions
@@ -182,7 +173,7 @@ class State():
     def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
-        carShape = [int((carSize[1]-1)/2), int((carSize[1]-1)/2), int((carSize[0]-1)/2)]
+        carShape = [int((carSize[0]-1)/2), int((carSize[1]-1)/2), int((carSize[1]-1)/2)]
         shape0 = []
         shape1 = []
 
@@ -251,9 +242,9 @@ class State():
 
     def renderHitBox(self):
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
-        for i in range(len(self.next_hitbox_index)):
-            index0 = self.next_hitbox_index[i][0]
-            index1 = self.next_hitbox_index[i][1]
+        for i in range(len(self.hitbox_index)):
+            index0 = self.hitbox_index[i][0]
+            index1 = self.hitbox_index[i][1]
             hitbox[index0, index1] = 1
         return hitbox
 
