@@ -7,6 +7,8 @@ import matplotlib.patches as patches
 
 from parameter import *
 
+print(1)
+
 A = np.zeros([10, 10])
 B = np.full([10, 10], -1)
 
@@ -20,11 +22,11 @@ B[4, 4] = 1
 
 S = Auto_Parking.State(A, B)
 
-a = [6, 0]
+a = [2, 1]
 
 print(S.shape0)
 
-for i in range(3):
+for i in range(5):
     print(S.moveValidity(a))
     if S.moveValidity(a) == 0:
         S.moveAgent(a)
@@ -32,3 +34,5 @@ for i in range(3):
         print(S.current_hitbox)
         print(S.next_hitbox)
 # print(S.state.shape)
+
+print(S.current_pos)

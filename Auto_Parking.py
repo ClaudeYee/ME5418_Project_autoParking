@@ -43,6 +43,7 @@ class State():
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
             self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            print(self.next_hitbox_index)
             self.next_hitbox = self.renderHitBox()
             self.current_hitbox_index = self.next_hitbox_index.copy()
             self.current_hitbox = self.next_hitbox.copy()
@@ -51,10 +52,7 @@ class State():
             self.num_rotation_actions = 9
             # 0: Stay, 1: 0, 2: 45, 3: 90, 4: 135, 5: 180, 6: 225, 7: 270, 8: 315 (degree)
 
-            self.action_space = spaces.Tuple((
-                spaces.Discrete(self.num_translation_actions),
-                spaces.Discrete(self.num_rotation_actions)
-            ))
+            # self.action_space = spaces.Tuple((spaces.Discrete(self.num_translation_actions), spaces.Discrete(self.num_rotation_actions)))
             # define action space two action:translation and rotation
 
             self.translation_directions = {
@@ -111,8 +109,8 @@ class State():
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
-            if (x > self.state.shape[0] or x < 0
-                    or y > self.state.shape[1] or y < 0):  # out of bounds
+            if (x > self.state.shape[0] -1 or x < 0
+                    or y > self.state.shape[1] -1 or y < 0):  # out of bounds
                 return -1
 
             if self.state[x, y] == (-1):  # collide with static obstacle
@@ -140,7 +138,7 @@ class State():
         self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
         self.next_hitbox = self.renderHitBox()
 
-    def parkingComplete(self):
+    def parking_complete(self):
         # Scan the first pixel in next_hitbox_index
         x, y = self.next_hitbox_index[0][0], self.next_hitbox_index[0][1]
         n = self.state[x, y]
@@ -161,17 +159,26 @@ class State():
 
     def sample_action(self):
     # sampling actions
-        return self.action_space.sample()
+        action_index = [random.randint(0, 8), random.randint(0, 8)]
+        print("action_index: ", action_index)
+
+        if action_index == None:
+            action_index = self.sample_action()
+
+        return action_index
 
     def get_action_data(self, action):
         # return data
         return action
 
     def get_new_pos_and_rotation_from_action(self, action):
-        translation = self.translation_directions[action[0]]
+        print("action: ", action)
+        print("translation_index:", action[0])
+        a = action[0]
+        translation = self.translation_directions[a]
+        print("translation", translation)
         rotation = action[1]
         new_pos = (self.robot_next_state[0][0] + translation[0], self.robot_next_state[0][1] + translation[1])
-        print(new_pos)
         return new_pos, rotation
 
     # def getDir(self, action):
@@ -272,7 +279,7 @@ class AutoPark_Env(gym.Env):
         self.parklot_size = PARKLOT_SIZE
 
         # tunable parameters for dist_reward
-        # self.dist_reward_param = DIST_REWARD_PARAM1
+        self.dist_reward_param = DIST_REWARD_PARAM1
 
         self.world_obs = None
         self.world_pklot = None
@@ -361,7 +368,7 @@ class AutoPark_Env(gym.Env):
                 pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] = pklot2
                 break
 
-        if check_available(pklot1, self.world_obs) and check_available(pklot2, self.world_obs):
+        if check_available(pklot_world, self.world_obs) :
 
             self.pklot1_pos = [(2* x1 + pklot1.shape[0])/2, (2* y1 + pklot1.shape[1])/2]
             self.pklot2_pos = [(2* x2 + pklot2.shape[0])/2, (2* y2 + pklot2.shape[1])/2]
@@ -410,15 +417,17 @@ class AutoPark_Env(gym.Env):
         self.save_action(action)
         # TODO: based on this line, modify moveAgent()
         # robot_state transition
-        next_robot_state = robot_state.moveAgent(action)
+        robot_state.moveAgent(action)
+        print("next_robot_state: ", robot_state.next_pos)
         next_robot_pos, next_robot_dir = robot_state.get_new_pos_and_rotation_from_action(action)
+        print("next robot pose:", list(next_robot_pos))
         # TODO: based on this line, modify the function to return which parking lot it reaches, if the task is complete.
-        if next_robot_state.parking_complete() == 1 or next_robot_state.parking_complete() == 2:
+        if robot_state.parking_complete() == 1 or robot_state.parking_complete() == 2:
             done = True
         # robot receives reward after conducting an action
         reward = self.compute_reward(next_robot_pos, next_robot_dir, done)
 
-        return next_robot_state, reward, done
+        return robot_state, reward, done
             # Check the action
             # action_validity = robot_state.moveValidity(self, action)
             # If the move is not valid (ie out of bond or collision) the robot needs to select another action
@@ -502,8 +511,10 @@ class AutoPark_Env(gym.Env):
             reward = final_reward
         else:
             # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking lot 2)
-            dist_to_pklot1 = np.linalg.norm(robot_pos - self.pklot1_pos)
-            dist_to_pklot2 = np.linalg.norm(robot_pos - self.pklot2_pos)
+            a=np.array(list(robot_pos))-np.array(self.pklot1_pos)
+            print("test", a[1])
+            dist_to_pklot1 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot1_pos))
+            dist_to_pklot2 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot2_pos))
             # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
             dist_reward1 = self.dist_reward_param * (1 / dist_to_pklot1)
             dist_reward2 = self.dist_reward_param * (1 / dist_to_pklot2)
@@ -552,11 +563,16 @@ class AutoPark_Env(gym.Env):
         plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
 
 
-def check_available(target, world):  # check whether the target area with such position and direction can be placed in the world
+def check_available(target, world):  # check whether the target(60*60)(could be pklot_ world or robot_world) area with such position and direction can be placed in the world
+    clearance = (ROBOT_SIZE[1] - 1)/2
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
-            if target[i][j] == world[i][j] == 1:
-                return False
+            if target[i][j] != 0:
+                if target[i][j] == world[i][j]:
+                    return False
+                elif (i > (world.shape[0] - clearance - 1) or i < (clearance - 1)
+                    or j > (world.shape[1] - clearance - 1) or j < (clearance - 1)):  # out of bounds
+                    return False
         break
     return True
 
@@ -565,7 +581,7 @@ def select_valid_action(robot_state):
     action = robot_state.sample_action()
     action_validity = robot_state.moveValidity(action)
     if action_validity < 0:
-        select_valid_action(robot_state)
+        return select_valid_action(robot_state)
     else:
         return action
 
