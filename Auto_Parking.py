@@ -264,11 +264,14 @@ class State():
         return hitbox_index
 
     def renderHitBox(self):
+        print("hitbox_index", self.next_hitbox_index)
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
         for i in range(len(self.next_hitbox_index)):
             index0 = self.next_hitbox_index[i][0]
             index1 = self.next_hitbox_index[i][1]
             hitbox[index0, index1] = 1
+
+        print("hitbox", hitbox)
         return hitbox
 
 
@@ -303,9 +306,8 @@ class AutoPark_Env(gym.Env):
 
         self.done = False
 
-        self.img_save_path = IMG_SAVE_PATH
-        if os.path.exists(self.img_save_path):
-            os.makedirs(self.img_save_path)
+        self.img_save_path = None
+
 
     # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
     def init_world(self):
@@ -493,7 +495,7 @@ class AutoPark_Env(gym.Env):
             self.save_robot_state(robot_state)
             self.save_reward(reward)
 
-            self.plot_env(img_save_path=self.img_save_path, step=i)
+            self.plot_env(step=i)
 
             if done:
                 self.save_accumulated_reward(self.accumulated_reward)
@@ -560,6 +562,9 @@ class AutoPark_Env(gym.Env):
         whole_world = self.world[0] + 10 * self.world[1] + 20 * self.world[2]       # 10, 20, 30 is in order to distinguish them in gray level
         plt.imshow(whole_world, cmap="gray")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
+        self.img_save_path = IMG_SAVE_PATH
+        if not os.path.exists(self.img_save_path):
+            os.makedirs(self.img_save_path)
         plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
 
 
@@ -570,8 +575,8 @@ def check_available(target, world):  # check whether the target(60*60)(could be 
             if target[i][j] != 0:
                 if target[i][j] == world[i][j]:
                     return False
-                elif (i > (world.shape[0] - clearance - 1) or i < (clearance - 1)
-                    or j > (world.shape[1] - clearance - 1) or j < (clearance - 1)):  # out of bounds
+                elif (i > (world.shape[0] - clearance - 2) or i < (clearance + 1)
+                    or j > (world.shape[1] - clearance - 2) or j < (clearance + 1)):  # out of bounds
                     return False
         break
     return True

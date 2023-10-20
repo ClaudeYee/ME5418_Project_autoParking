@@ -5,4 +5,4 @@ PROB = [0.3, 0.5]
 
 DIST_REWARD_PARAM1 = 0.1
 
-IMG_SAVE_PATH = "test_pictures/"
+IMG_SAVE_PATH = "test_pictures"
