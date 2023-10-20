@@ -1,10 +1,12 @@
+import os.path
+
 import gym
 from gym import spaces
 import numpy as np
 from collections import OrderedDict
 import sys
 import time
-# from matplotlib.colors import hsv_to_rgb
+import matplotlib.pyplot as plt
 import random
 import math
 import copy
@@ -31,7 +33,7 @@ ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2
 # actionDict={v:k for k,v in dirDict.items()}
 
 class State():
-    def __init__(self, world0, pos, dir, carSize=ROBOT_SIZE):
+    def __init__(self, world0, pos, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
             self.current_pos = pos
@@ -250,7 +252,7 @@ class State():
 
 
 class AutoPark_Env(gym.Env):
-    def __init__(self, world0, plot=False, blank_world=False):          # blank_world: there is no robot and any parking lots
+    def __init__(self, world0=None, plot=False, blank_world=False):          # blank_world: there is no robot and any parking lots
         self.world_size = WORLD_SIZE
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
@@ -289,7 +291,7 @@ class AutoPark_Env(gym.Env):
             self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
             self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
 
-            self.world = np.array([self.world_obs, self.world_pklot, self.robot_pos])
+            self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
     def init_obstacles(self, size):
         world_obs = generate_obs(size)
@@ -356,10 +358,12 @@ class AutoPark_Env(gym.Env):
         pos_x, pos_y = np.random.randint(0, world.shape[0]), np.random.randint(0, world.shape[1])
         # randomly generate a heading of the robot
         dir = random.randint(0, 7)
-
-        init_robot_pos = [pos_x, pos_y]
+        init_robot_pos_coord = [pos_x, pos_y]
         init_robot_dir = dir
-        self.init_robot_state = State(world, init_robot_pos, init_robot_dir)
+        init_robot_pos = -1 * np.ones(world.shape[0], world.shape[1])
+        init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
+
+        self.init_robot_state = State(world, init_robot_pos)
         init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
         init_hitbox = self.init_robot_state.hitbox
 
@@ -451,7 +455,7 @@ class AutoPark_Env(gym.Env):
         self.save_robot_state(robot_state)  # save the initial robot state
         for _ in range(self.episode_length):
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
-            robot_state, reward, done = self.step(robot_state, done)
+            robot_state, reward, done = self.step(robot_state=robot_state, done=done)
             self.accumulated_reward += reward
             self.save_robot_state(robot_state)
             self.save_reward(reward)
@@ -511,8 +515,14 @@ class AutoPark_Env(gym.Env):
         pass
 
     # Plot the environment for every step
-    def plot_env(self, save_path, step):
-
+    def plot_env(self, img_save_path, step):
+        plt.switch_backend('agg')
+        plt.cla()
+        # TODO: might be modified here
+        whole_world = self.world[0] + 10 * self.world[1] + 20 * self.world[2]       # 10, 20, 30 is in order to distinguish them in gray level
+        plt.imshow(whole_world, cmap="gray")
+        plt.axis((0, self.world_size[1], self.world_size[0], 0))
+        plt.savefig('{}/step_{}.png'.format(img_save_path, step))
 
 
 def check_available(target, world):  # check whether the target area with such position and direction can be placed in the world
@@ -531,3 +541,10 @@ def select_valid_action(robot_state):
         select_valid_action(robot_state)
     else:
         return action
+
+
+if __name__ == "__main__":
+    img_save_path = "test_pictures/"
+    if os.path.exists(img_save_path):
+        os.makedirs(img_save_path)
+    env = AutoPark_Env()

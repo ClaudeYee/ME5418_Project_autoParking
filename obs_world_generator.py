@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import random
 import skimage
@@ -153,7 +155,15 @@ def find_neighboring_one(matrix, i, j):
 
 
 if __name__ == "__main__":
+    image_save_path = "test_pictures/"
     map_size = [60, 60]
     obs_world0 = generate_obs(size=map_size, obstacle_ratio=10, remove_edge_ratio=3)
     plt.imshow(obs_world0, cmap="gray")
-    plt.show()
+    plt.axis((0, map_size[1], map_size[0], 0))
+
+    plt.suptitle('Test Environment')
+    plt.tight_layout()
+
+    if not os.path.exists(image_save_path):
+        os.makedirs(image_save_path)
+    plt.savefig('{}/test.png'.format(image_save_path))
