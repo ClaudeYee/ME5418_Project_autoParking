@@ -4,3 +4,5 @@ WORLD_SIZE = [60, 60]
 PROB = [0.3, 0.5]
 
 # DIST_REWARD_PARAM =
+
+IMG_SAVE_PATH = "test_pictures/"

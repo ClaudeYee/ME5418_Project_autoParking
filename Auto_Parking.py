@@ -252,7 +252,7 @@ class State():
 
 
 class AutoPark_Env(gym.Env):
-    def __init__(self, world0=None, plot=False, blank_world=False):          # blank_world: there is no robot and any parking lots
+    def __init__(self, world0=None, blank_world=False):          # blank_world: there is no robot and any parking lots
         self.world_size = WORLD_SIZE
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
@@ -282,8 +282,12 @@ class AutoPark_Env(gym.Env):
 
         self.done = False
 
+        self.img_save_path = IMG_SAVE_PATH
+        if os.path.exists(self.img_save_path):
+            os.makedirs(self.img_save_path)
+
     # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
-    def init_world(self, world0):
+    def init_world(self, world0=None):
         if world0:
             world = world0.copy()
         else:
@@ -360,7 +364,7 @@ class AutoPark_Env(gym.Env):
         dir = random.randint(0, 7)
         init_robot_pos_coord = [pos_x, pos_y]
         init_robot_dir = dir
-        init_robot_pos = -1 * np.ones(world.shape[0], world.shape[1])
+        init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
         init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
 
         self.init_robot_state = State(world, init_robot_pos)
@@ -453,12 +457,15 @@ class AutoPark_Env(gym.Env):
         done = False
         robot_state = self.init_robot_state # start the first step from the init_robot_state, and set it as the robot_current_state
         self.save_robot_state(robot_state)  # save the initial robot state
-        for _ in range(self.episode_length):
+        for i in range(self.episode_length):
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
             robot_state, reward, done = self.step(robot_state=robot_state, done=done)
             self.accumulated_reward += reward
             self.save_robot_state(robot_state)
             self.save_reward(reward)
+
+            self.plot_env(img_save_path=self.img_save_path, step=i)
+
             if done:
                 self.save_accumulated_reward(self.accumulated_reward)
                 print("The robot has successfully parked in the parking lot, task succeeded!")
@@ -515,14 +522,14 @@ class AutoPark_Env(gym.Env):
         pass
 
     # Plot the environment for every step
-    def plot_env(self, img_save_path, step):
+    def plot_env(self, step):
         plt.switch_backend('agg')
         plt.cla()
         # TODO: might be modified here
         whole_world = self.world[0] + 10 * self.world[1] + 20 * self.world[2]       # 10, 20, 30 is in order to distinguish them in gray level
         plt.imshow(whole_world, cmap="gray")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
-        plt.savefig('{}/step_{}.png'.format(img_save_path, step))
+        plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
 
 
 def check_available(target, world):  # check whether the target area with such position and direction can be placed in the world
@@ -548,3 +555,5 @@ if __name__ == "__main__":
     if os.path.exists(img_save_path):
         os.makedirs(img_save_path)
     env = AutoPark_Env()
+    env.init_world()
+    env.run_episode()
