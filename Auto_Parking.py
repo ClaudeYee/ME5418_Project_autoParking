@@ -282,13 +282,13 @@ class AutoPark_Env(gym.Env):
         self.init_robot_pos = None
         self.init_robot_dir = None
 
-        # self.robot_pos = None
-        # self.robot_dir = None
+        self.robot_pos = None
+        self.robot_dir = None
 
         self.pklot1_pos = None
         self.pklot2_pos = None
 
-        self.init_world(world0)
+        # self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
 
         self.accumulated_reward = 0
@@ -301,18 +301,19 @@ class AutoPark_Env(gym.Env):
             os.makedirs(self.img_save_path)
 
     # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
-    def init_world(self, world0=None):
-        if world0:
-            world = world0.copy()
-        else:
-            self.world_obs = self.init_obstacles(self.world_size)       # the obstacle channel of the world
-            self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
-            self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
+    def init_world(self):
+        # if world0:
+        #     world = world0.copy()
+        # else:
+        self.world_obs = self.init_obstacles()       # the obstacle channel of the world
+        print("world_obs:", self.world_obs)
+        self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
+        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
 
-            self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
+        self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
-    def init_obstacles(self, size):
-        world_obs = generate_obs(size)
+    def init_obstacles(self):
+        world_obs = generate_obs(size=self.world_size)
         return world_obs
 
     def init_parkinglots(self, world_size, parklot_size):
@@ -383,7 +384,7 @@ class AutoPark_Env(gym.Env):
 
         self.init_robot_state = State(world, init_robot_pos)
         init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
-        init_hitbox = self.init_robot_state.hitbox
+        init_hitbox = self.init_robot_state.next_hitbox
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
@@ -565,9 +566,7 @@ def select_valid_action(robot_state):
 
 
 if __name__ == "__main__":
-    img_save_path = "test_pictures/"
-    if os.path.exists(img_save_path):
-        os.makedirs(img_save_path)
+    # img_save_path = "test_pictures/"
     env = AutoPark_Env()
     env.init_world()
     env.run_episode()
