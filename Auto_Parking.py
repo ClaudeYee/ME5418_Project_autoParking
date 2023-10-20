@@ -36,15 +36,16 @@ class State():
     def __init__(self, world0, pos, carSize=ROBOT_SIZE):
             # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
             self.state = world0.copy()
-            self.current_pos = pos
-            self.current_dir = dir
+            self.current_pos = pos.copy()
             self.next_pos = np.zeros(WORLD_SIZE)
             self.robot_current_state = self.getState()      # TODO: This might not be needed later.
-            self.robot_next_state = [[0, 0], 0]
+            self.robot_next_state = self.robot_current_state.copy()
             self.robot_size = carSize
             self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
-            self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-            self.hitbox = self.renderHitBox()
+            self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            self.next_hitbox = self.renderHitBox()
+            self.current_hitbox_index = self.next_hitbox_index.copy()
+            self.current_hitbox = self.next_hitbox.copy()
             self.num_translation_actions = 9
             # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
             self.num_rotation_actions = 9
@@ -86,14 +87,16 @@ class State():
     # def setDirection(self, direction):
     #     self.direction = direction
 
+    # Scan the pos matrix and return the coordinate of the robot,
+    # The value at this position is 1, and dir refers to the current direction of the robot
     def getState(self):
         size = [np.size(self.current_pos, 0), np.size(self.current_pos, 1)]
         for i in range(size[0]):
             for j in range(size[0]):
                 if self.current_pos[i, j] != -1:
-                    return [[i, j], self.current_pos[i, j]]   # return the coordinate of the robot, the value at this position is 1, and dir refers to the current direction of the robot
+                    return [[i, j], self.current_pos[i, j]]
 
-    # try to move agent and return the status
+    # Try to move agent and return the status
     def moveValidity(self, action):
         # action is a list. Its first element is destination,
         # And its second element is desired next_dir
@@ -105,36 +108,27 @@ class State():
 
         # Otherwise, let's look at the validity of the move
         hitbox_index = self.getHitBox_index(next_pos, next_dir)
-        is_in_parking_space = []
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
-            if (x >= self.state.shape[0] or x < 0
-                    or y >= self.state.shape[1] or y < 0):  # out of bounds
+            if (x > self.state.shape[0] or x < 0
+                    or y > self.state.shape[1] or y < 0):  # out of bounds
                 return -1
 
             if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
-            elif self.state[x, y] != 0:
-                is_in_parking_space.append(self.state[x, y])
-
-
-
-        # See if every pixel is in the same parking space
-        # If so, then our car parked in its space
-        if len(is_in_parking_space) == len(hitbox_index):
-            return int(is_in_parking_space[0])
-
         # none of the above
-        return 1
+        return 0
 
     def moveAgent(self, action):
         next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
-        # refresh robot_current_state & current_pos
+        # refresh robot_current_state, pos and hitbox
         self.robot_current_state = self.robot_next_state.copy()
         self.current_pos = self.next_pos.copy()
+        self.current_hitbox_index = self.next_hitbox_index.copy()
+        self.current_hitbox = self.next_hitbox.copy()
 
         # Valid move: we can carry out the action in next_pos & robot_state
         self.next_pos[self.robot_next_state[0]] = -1
@@ -142,9 +136,28 @@ class State():
         self.robot_next_state[1] = next_dir
         self.next_pos[self.robot_next_state[0]] = next_dir
 
-        #
-        self.hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-        self.hitbox = self.renderHitBox()
+        # Get the new hit box for next stage
+        self.next_hitbox_index = self.getHitBox_index(self.robot_next_state[0], self.robot_next_state[1])
+        self.next_hitbox = self.renderHitBox()
+
+    def parkingComplete(self):
+        # Scan the first pixel in next_hitbox_index
+        x, y = self.next_hitbox_index[0][0], self.next_hitbox_index[0][1]
+        n = self.state[x, y]
+        # If it's not in parking space, then our robot is not parked.
+        if n == 0:
+            return 0
+        # If it is in one of the parking space, check if the rest pixels is in the same.
+        pklot_id = n
+
+        # Check the rest pixels
+        for i in range(len(self.next_hitbox_index)):
+            x, y = self.next_hitbox_index[i][0], self.next_hitbox_index[i][1]
+            n = self.state[x, y]
+            if n != pklot_id:
+                return 0
+
+        return int(pklot_id)
 
     def sample_action(self):
     # sampling actions
@@ -157,7 +170,8 @@ class State():
     def get_new_pos_and_rotation_from_action(self, action):
         translation = self.translation_directions[action[0]]
         rotation = action[1]
-        new_pos = (self.robot_current_state[0][0] + translation[0], self.robot_current_state[0][1] + translation[1])
+        new_pos = (self.robot_next_state[0][0] + translation[0], self.robot_next_state[0][1] + translation[1])
+        print(new_pos)
         return new_pos, rotation
 
     # def getDir(self, action):
@@ -175,7 +189,7 @@ class State():
     def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
-        carShape = [int((carSize[0]-1)/2), int((carSize[1]-1)/2), int((carSize[1]-1)/2)]
+        carShape = [int((carSize[1]-1)/2), int((carSize[1]-1)/2), int((carSize[0]-1)/2)]
         shape0 = []
         shape1 = []
 
@@ -244,9 +258,9 @@ class State():
 
     def renderHitBox(self):
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
-        for i in range(len(self.hitbox_index)):
-            index0 = self.hitbox_index[i][0]
-            index1 = self.hitbox_index[i][1]
+        for i in range(len(self.next_hitbox_index)):
+            index0 = self.next_hitbox_index[i][0]
+            index1 = self.next_hitbox_index[i][1]
             hitbox[index0, index1] = 1
         return hitbox
 

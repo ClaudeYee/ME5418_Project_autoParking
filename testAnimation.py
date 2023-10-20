@@ -56,6 +56,7 @@ def update(frame):
 
     # rectangle = patches.Rectangle(rotated_center, ROBOT_SIZE[1], ROBOT_SIZE[0], angle=-angle, color='r')
     angle = -angle + 360
+
     if angle <= 0:
         angle += 1
     elif angle == 360:
@@ -72,7 +73,7 @@ print("started")
 ani = FuncAnimation(fig
                     , update
                     , init_func=init
-                    , frames=8
+                    , frames=16
                     , interval=100
                     , blit=True
                     )

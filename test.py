@@ -22,10 +22,13 @@ S = Auto_Parking.State(A, B)
 
 a = [6, 0]
 
-print(S.shape1)
-print(S.moveValidity(a))
-print(S.moveAgent(a))
+print(S.shape0)
 
-print(S.current_hitbox)
-print(S.next_hitbox)
-# print(S.state)
+for i in range(3):
+    print(S.moveValidity(a))
+    if S.moveValidity(a) == 0:
+        S.moveAgent(a)
+        print(S.parkingComplete())
+        print(S.current_hitbox)
+        print(S.next_hitbox)
+# print(S.state.shape)
