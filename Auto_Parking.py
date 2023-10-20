@@ -369,7 +369,8 @@ class AutoPark_Env(gym.Env):
             return pklot_world
 
         else:
-            self.init_parkinglots(world_size, parklot_size)
+            pklot_world = self.init_parkinglots(world_size, parklot_size)
+            return pklot_world
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world):
@@ -384,17 +385,21 @@ class AutoPark_Env(gym.Env):
 
         self.init_robot_state = State(world, init_robot_pos)
         init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
-        init_hitbox = self.init_robot_state.next_hitbox
+        init_robot_hitbox = self.init_robot_state.next_hitbox
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
-        if world[pos_x, pos_y] == 0 and check_available(init_hitbox, world):
-            init_robot_pos = [pos_x, pos_y]
-            init_robot_dir = dir
-            init_robot_hitbox = init_hitbox
+        if world[pos_x, pos_y] == 0 and check_available(init_robot_hitbox, world):
+            print("hi")
+            # init_robot_pos_coord = [pos_x, pos_y]
+            # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
+            # init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
+            # init_robot_dir = dir
+            # init_robot_hitbox = init_hitbox
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
-            self.init_robot(world)
+            init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world)
+            return init_robot_pos, init_robot_dir, init_robot_hitbox
 
     def step(self, robot_state, done=False):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
