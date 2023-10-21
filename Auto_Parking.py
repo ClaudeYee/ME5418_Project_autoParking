@@ -253,7 +253,7 @@ class State():
             rotated_pixels = np.array(shape[i]).dot(rotateMatrix)
             # Apply the translation Transform
             finial_pixels = rotated_pixels + shift
-            hitbox_index.append([int(finial_pixels[0]), int(finial_pixels[1])])
+            hitbox_index.append([round(finial_pixels[0]), round(finial_pixels[1])])
 
         return hitbox_index
 

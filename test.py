@@ -14,21 +14,21 @@ B = np.full([10, 10], -1)
 
 for i in range(PARKLOT_SIZE[0]):
     for j in range(PARKLOT_SIZE[1]):
-        A[i, j] = 1
+        A[i, j] = 0
 
-A[9, 9] = -1
+A[9, 9] = 1
 
 B[4, 4] = 1
 
 S = Auto_Parking.State(A, B)
 
-a = [2, 1]
+a = [0, 1]
 
 print(S.shape1)
 
-for i in range(5):
+for i in range(8):
     print(S.moveValidity(a))
-    a = [2, 1+i]
+    a = [0, i]
     if S.moveValidity(a) == 0:
         print("dir", a[1])
         S.moveAgent(a)
