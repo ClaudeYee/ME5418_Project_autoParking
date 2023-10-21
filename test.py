@@ -24,14 +24,16 @@ S = Auto_Parking.State(A, B)
 
 a = [2, 1]
 
-print(S.shape0)
+print(S.shape1)
 
 for i in range(5):
     print(S.moveValidity(a))
+    a = [2, 1+i]
     if S.moveValidity(a) == 0:
+        print("dir", a[1])
         S.moveAgent(a)
-        print(S.parkingComplete())
-        print(S.current_hitbox)
+        print(S.parking_complete())
+        print(S.next_hitbox_index)
         print(S.next_hitbox)
 # print(S.state.shape)
 

@@ -5,4 +5,6 @@ PROB = [0.3, 0.5]
 
 DIST_REWARD_PARAM1 = 0.1
 
+EPISODE_LENGTH = 20
+
 IMG_SAVE_PATH = "test_pictures"

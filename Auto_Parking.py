@@ -27,7 +27,6 @@ from parameter import *
 
 ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2, 0.3, 1.0, 40
 
-
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
 # dirDict = {0:(0,0),1:(0,1),2:(1,0),3:(0,-1),4:(-1,0),5:(1,1),6:(1,-1),7:(-1,-1),8:(-1,1)}
@@ -35,38 +34,38 @@ ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2
 
 class State():
     def __init__(self, world0, pos, carSize=ROBOT_SIZE):
-        # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
-        self.state = world0.copy()
-        self.current_pos = pos.copy()
-        self.next_pos = np.zeros(WORLD_SIZE)
-        self.robot_current_state = self.getState()  # TODO: This might not be needed later.
-        self.robot_next_state = self.robot_current_state.copy()
-        self.robot_size = carSize
-        self.shape0, self.shape1 = self.getShape(carSize)  # TODO: here do some changes
-        self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-        print(self.next_hitbox_index)
-        self.next_hitbox = self.renderHitBox()
-        self.current_hitbox_index = self.next_hitbox_index.copy()
-        self.current_hitbox = self.next_hitbox.copy()
-        self.num_translation_actions = 9
-        # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
-        self.num_rotation_actions = 9
-        # 0: Stay, 1: 0, 2: 45, 3: 90, 4: 135, 5: 180, 6: 225, 7: 270, 8: 315 (degree)
+            # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
+            self.state = world0.copy()
+            self.current_pos = pos.copy()
+            self.next_pos = np.zeros(WORLD_SIZE)
+            self.robot_current_state = self.getState()      # TODO: This might not be needed later.
+            self.robot_next_state = self.robot_current_state.copy()
+            self.robot_size = carSize
+            self.shape0, self.shape1 = self.getShape(carSize)   # TODO: here do some changes
+            self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
+            # print(self.next_hitbox_index)
+            self.next_hitbox = self.renderHitBox()
+            self.current_hitbox_index = self.next_hitbox_index.copy()
+            self.current_hitbox = self.next_hitbox.copy()
+            self.num_translation_actions = 9
+            # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
+            self.num_rotation_actions = 9
+            # 0: Stay, 1: 0, 2: 45, 3: 90, 4: 135, 5: 180, 6: 225, 7: 270, 8: 315 (degree)
 
-        # self.action_space = spaces.Tuple((spaces.Discrete(self.num_translation_actions), spaces.Discrete(self.num_rotation_actions)))
-        # define action space two action:translation and rotation
+            # self.action_space = spaces.Tuple((spaces.Discrete(self.num_translation_actions), spaces.Discrete(self.num_rotation_actions)))
+            # define action space two action:translation and rotation
 
-        self.translation_directions = {
-            0: (0, 0),  # STAY
-            1: (1, 0),  # EAST
-            2: (1, 1),  # NORTHEAST
-            3: (0, 1),  # NORTH
-            4: (-1, 1),  # NORTHWEST
-            5: (-1, 0),  # WEST
-            6: (-1, -1),  # SOUTHWEST
-            7: (0, -1),  # SOUTH
-            8: (1, -1)  # SOUTHEAST
-        }
+            self.translation_directions = {
+                0: (0, 0),  # STAY
+                1: (1, 0),  # EAST
+                2: (1, 1),  # NORTHEAST
+                3: (0, 1),  # NORTH
+                4: (-1, 1),  # NORTHWEST
+                5: (-1, 0),  # WEST
+                6: (-1, -1),  # SOUTHWEST
+                7: (0, -1),  # SOUTH
+                8: (1, -1)  # SOUTHEAST
+            }
 
     # # def scanForAgent(self):
     # #     agent_pos = (-1, -1)
@@ -99,7 +98,7 @@ class State():
     def moveValidity(self, action):
         # action is a list. Its first element is destination,
         # And its second element is desired next_dir
-        next_pos, next_dir = self.get_new_coord_and_rotation_index_from_action(action)
+        next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
         # Not moving is always allowed
         if next_pos == self.robot_current_state[0] and next_dir == self.robot_current_state[1]:
@@ -110,8 +109,8 @@ class State():
 
         for i in range(len(hitbox_index)):
             x, y = hitbox_index[i][0], hitbox_index[i][1]
-            if (x > self.state.shape[0] - 1 or x < 0
-                    or y > self.state.shape[1] - 1 or y < 0):  # out of bounds
+            if (x > self.state.shape[0] -1 or x < 0
+                    or y > self.state.shape[1] -1 or y < 0):  # out of bounds
                 return -1
 
             if self.state[x, y] == (-1):  # collide with static obstacle
@@ -121,7 +120,7 @@ class State():
         return 0
 
     def moveAgent(self, action):
-        next_pos, next_dir = self.get_new_coord_and_rotation_index_from_action(action)
+        next_pos, next_dir = self.get_new_pos_and_rotation_from_action(action)
 
         # refresh robot_current_state, pos and hitbox
         self.robot_current_state = self.robot_next_state.copy()
@@ -159,22 +158,28 @@ class State():
         return int(pklot_id)
 
     def sample_action(self):
-        # sampling actions
+    # sampling actions
         action_index = [random.randint(0, 8), random.randint(0, 8)]
+        # print("action_index: ", action_index)
+
         if action_index == None:
             action_index = self.sample_action()
+
         return action_index
 
     def get_action_data(self, action):
         # return data
         return action
 
-    def get_new_coord_and_rotation_index_from_action(self, action):
+    def get_new_pos_and_rotation_from_action(self, action):
+        # print("action: ", action)
+        # print("translation_index:", action[0])
         a = action[0]
         translation = self.translation_directions[a]
+        # print("translation", translation)
         rotation = action[1]
-        new_coord = (self.robot_next_state[0][0] + translation[0], self.robot_next_state[0][1] + translation[1])
-        return new_coord, rotation
+        new_pos = (self.robot_next_state[0][0] + translation[0], self.robot_next_state[0][1] + translation[1])
+        return new_pos, rotation
 
     # def getDir(self, action):
     #     return dirDict[action]
@@ -191,7 +196,7 @@ class State():
     def getShape(self, carSize):
         # shape0 is the hitbox when car is at [0, 0] with dir = 0
         # shape1 is the hitbox with dir = 1
-        carShape = [int((carSize[1] - 1) / 2), int((carSize[1] - 1) / 2), int((carSize[0] - 1) / 2)]
+        carShape = [int((carSize[1]-1)/2), int((carSize[1]-1)/2), int((carSize[0]-1)/2)]
         shape0 = []
         shape1 = []
 
@@ -218,9 +223,10 @@ class State():
 
                 # see if within origin hitbox
                 if ((-1 * carShape[1]) < rotated_pixel_coords[0] < (carShape[0]) and
-                        (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
+                    (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
                     # if so, add to shape1
                     shape1.append([x, y])
+        # TODO: I am not sure why there are two outputs
         return shape0, shape1
 
     # Calculate the hitbox
@@ -236,11 +242,11 @@ class State():
         # If not, use Shape0
         if agent_dir % 2 == 0:
             shape = self.shape0
-            angle = agent_dir / 2 * np.pi
+            angle = agent_dir / 2 * 90
         # Else, use Shape1
         else:
             shape = self.shape1
-            angle = (agent_dir - 1) / 2 * np.pi
+            angle = (agent_dir - 1) / 2 * 90
 
         # Calculate the rotation Matrix
         angle_rad = np.radians(angle)
@@ -258,16 +264,19 @@ class State():
         return hitbox_index
 
     def renderHitBox(self):
+        # print("hitbox_index", self.next_hitbox_index)
         hitbox = np.zeros([self.state.shape[0], self.state.shape[1]])
         for i in range(len(self.next_hitbox_index)):
             index0 = self.next_hitbox_index[i][0]
             index1 = self.next_hitbox_index[i][1]
             hitbox[index0, index1] = 1
+
+        # print("hitbox", hitbox)
         return hitbox
 
 
 class AutoPark_Env(gym.Env):
-    def __init__(self, world0=None, blank_world=False):  # blank_world: there is no robot and any parking lots
+    def __init__(self, world0=None, blank_world=False):          # blank_world: there is no robot and any parking lots
         self.world_size = WORLD_SIZE
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
@@ -293,20 +302,23 @@ class AutoPark_Env(gym.Env):
         self.init_robot_state = None  # might have some problems here
 
         self.accumulated_reward = 0
-        self.episode_length = 200
+        self.episode_length = EPISODE_LENGTH
 
         self.done = False
 
         self.img_save_path = None
+
 
     # randomly generate a world with obstacles and two parking lots. Note that they are separately put into two channels of the same world
     def init_world(self):
         # if world0:
         #     world = world0.copy()
         # else:
-        self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        self.world_obs = self.init_obstacles()       # the obstacle channel of the world
+        # print("world_obs:", self.world_obs)
         self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
-        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)      # NOTE: self.world_robot is robot_hitbox
+        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)
+
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
     def init_obstacles(self):
@@ -360,22 +372,23 @@ class AutoPark_Env(gym.Env):
 
         if check_available(pklot_world, self.world_obs):
 
-            self.pklot1_pos = [(2 * x1 + pklot1.shape[0]) / 2, (2 * y1 + pklot1.shape[1]) / 2]
-            self.pklot2_pos = [(2 * x2 + pklot2.shape[0]) / 2, (2 * y2 + pklot2.shape[1]) / 2]
+            self.pklot1_pos = [(2* x1 + pklot1.shape[0])/2, (2* y1 + pklot1.shape[1])/2]
+            self.pklot2_pos = [(2* x2 + pklot2.shape[0])/2, (2* y2 + pklot2.shape[1])/2]
 
             return pklot_world
 
         else:
+            print("not available")
             pklot_world = self.init_parkinglots(world_size, parklot_size)
             return pklot_world
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world):
         # pos_x and pos_y refer to the center point coordinate of the robot
-        coord_x, coord_y = np.random.randint(0, world.shape[0]), np.random.randint(0, world.shape[1])
+        pos_x, pos_y = np.random.randint(3, world.shape[0]-3), np.random.randint(3, world.shape[1]-3)
         # randomly generate a heading of the robot
         dir = random.randint(0, 7)
-        init_robot_pos_coord = [coord_x, coord_y]
+        init_robot_pos_coord = [pos_x, pos_y]
         init_robot_dir = dir
         init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
         init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
@@ -386,7 +399,8 @@ class AutoPark_Env(gym.Env):
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
-        if world[coord_x, coord_y] == 0 and check_available(init_robot_hitbox, world):
+        if world[pos_x, pos_y] == 0 and check_available(init_robot_hitbox, world):
+            # print("hi")
             # init_robot_pos_coord = [pos_x, pos_y]
             # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
             # init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
@@ -401,38 +415,92 @@ class AutoPark_Env(gym.Env):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
         # and change the state of our robot and the different parameters accordingly
         ## For now, randomly sample an action from the valid action space for testing without training
-        action = select_valid_action(robot_state)
+        current_robot_state = robot_state
+        action = select_valid_action(current_robot_state)
         self.save_action(action)
-
+        # TODO: based on this line, modify moveAgent()
         # robot_state transition
         robot_state.moveAgent(action)
-        next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action)
-
+        # print("next_robot_state: ", robot_state.next_pos)
+        next_robot_pos, next_robot_dir = robot_state.get_new_pos_and_rotation_from_action(action)
+        # print("next robot pose:", list(next_robot_pos))
+        # TODO: based on this line, modify the function to return which parking lot it reaches, if the task is complete.
         if robot_state.parking_complete() == 1 or robot_state.parking_complete() == 2:
             done = True
         # robot receives reward after conducting an action
-        reward = self.compute_reward(next_robot_coord, next_robot_dir, done)
+        reward = self.compute_reward(next_robot_pos, next_robot_dir, done)
 
         return robot_state, reward, done
+            # Check the action
+            # action_validity = robot_state.moveValidity(self, action)
+            # If the move is not valid (ie out of bond or collision) the robot needs to select another action
+            # as part of this same step and without getting punished or rewarded
+            # if action_validity < 0:
+            #     action = robot_state.sample_action()
+
+            # If the move is valid
+            # else:
+            #     # No matter the outcome of the move these need to be updated in the same way
+            #     self.episode_length -= 1
+            #     robot_state.moveAgent(self, action)
+            #     next_pos, next_dir = robot_state.get_new_pos_and_rotation_from_action(self, action)
+            #
+            #     # If the action is valid and does not lead to the completion of the mission the robot and consists only
+            #     # in the robot turning without moving, the robot complete the turn and is rewarded accordingly
+            #     if action_validity == 0:
+            #         self.reward += TURNING_COST
+            #
+            #     # If the action is valid and does not lead to the completion of the mission but the robot move
+            #     # it will complete the move and is rewarded accordingly depending on whether it get closer or
+            #     # not to one of the parking lot
+            #     elif action_validity == 1:
+            #         pre_dist1 = np.linalg.norm(self.robot_pos - self.pklot1_pos)
+            #         pre_dist2 = np.linalg.norm(self.robot_pos - self.pklot2_pos)
+            #
+            #         post_dist1 = np.linalg.norm(next_pos - self.pklot1_pos)
+            #         post_dist2 = np.linalg.norm(next_pos - self.pklot2_pos)
+            #
+            #         self.reward += ACTION_COST
+            #
+            #         # If the robot is getting closer to one of the parking lot after the move
+            #         # it is rewarded if not it is punished
+            #         if (pre_dist1 > post_dist1) or (pre_dist2 > post_dist2):
+            #             self.reward += CLOSER_REWARD
+            #         else:
+            #             self.reward -= CLOSER_REWARD
+            #
+            #     # If the action is valid and lead to the completion of the mission the robot move one step and is
+            #     # reward accordingly and the mission is completed and the done parameter is changed to True to indicate
+            #     # the mission is done and the episode can be reset
+            #     else:
+            #         self.reward += ACTION_COST
+            #         self.reward += GOAL_REWARD
+            #         self.done = True
+            #
+            #     # Update the state after the action is completed and the reward is given
+            #     self.init_robot_state = State(self.world, next_pos, next_dir)
+
+        # If the time step is exhausted the episode will be stopped no matter if the mission is completed or not and
+        # the environment and episode will both be reset
+        # else:
+        #     self.done = True
 
     def run_episode(self):
         done = False
-        robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
+        robot_state = self.init_robot_state # start the first step from the init_robot_state, and set it as the robot_current_state
         self.save_robot_state(robot_state)  # save the initial robot state
         for i in range(self.episode_length):
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
             robot_state, reward, done = self.step(robot_state=robot_state, done=done)
-            self.world_robot = robot_state.next_hitbox
-            self.world = [self.world_obs, self.world_pklot, self.world_robot]
-            
             self.accumulated_reward += reward
             self.save_robot_state(robot_state)
             self.save_reward(reward)
+
             self.plot_env(step=i)
 
             if done:
                 self.save_accumulated_reward(self.accumulated_reward)
-                print("The robot has successfully parked in the parking lot, task succeeded!")
+                # print("The robot has successfully parked in the parking lot, task succeeded!")
                 break
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
@@ -442,12 +510,12 @@ class AutoPark_Env(gym.Env):
     def compute_reward(self, robot_pos, robot_dir, done):
         # 1. Reward for task completion
         if done:
-            final_reward = FINAL_REWARD  # if the robot successfully has parked into the the parking lot, it receives a very big reward
+            final_reward = FINAL_REWARD   # if the robot successfully has parked into the the parking lot, it receives a very big reward
             reward = final_reward
         else:
             # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking lot 2)
-            a = np.array(list(robot_pos)) - np.array(self.pklot1_pos)
-            print("test", a[1])
+            a=np.array(list(robot_pos))-np.array(self.pklot1_pos)
+            # print("test", a[1])
             dist_to_pklot1 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot1_pos))
             dist_to_pklot2 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot2_pos))
             # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
@@ -471,15 +539,17 @@ class AutoPark_Env(gym.Env):
 
     def save_accumulated_reward(self, accumulated_reward):
         pass
-
-    def get_world_obs(self):
+    
+    def getObstacleWorld(self):
         print(self.world_obs)
 
-    def get_world_pklot(self):
+    def getParklotWorld(self):
         print(self.world_pklot)
 
-    def get_world_robot(self):
+    def getRobotWorld(self):
         print(self.world_robot)
+
+
 
     # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
     def act(self, actions):
@@ -490,11 +560,8 @@ class AutoPark_Env(gym.Env):
         plt.switch_backend('agg')
         plt.cla()
         # TODO: might be modified here
-        world_obs = self.world[0] * 255
-        world_pklots = self.world[1] * 50
-        world_robot = self.world[2] * 180
-        whole_world = world_obs + world_pklots + world_robot    # 10, 20, 30 is in order to distinguish them in gray level
-        plt.imshow(whole_world, cmap="gray_r")
+        whole_world = self.world[0] + 10 * self.world[1] + 20 * self.world[2]       # 10, 20, 30 is in order to distinguish them in gray level
+        plt.imshow(whole_world, cmap="gray")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
         self.img_save_path = IMG_SAVE_PATH
         if not os.path.exists(self.img_save_path):
@@ -502,17 +569,13 @@ class AutoPark_Env(gym.Env):
         plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
 
 
-def check_available(target, world):  # check whether the target(60*60)(could be world_pklot or world_robot) area with such position and direction can be placed in the world
-    clearance = (ROBOT_SIZE[1] - 1) / 2
+def check_available(target, world):  # check whether the target(60*60)(could be pklot_ world or robot_world) area with such position and direction can be placed in the world
+    v = target + world
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
             if target[i][j] != 0:
-                if target[i][j] == world[i][j]:
+                if world[i][j] == 0:
                     return False
-                elif (i > (world.shape[0] - clearance - 2) or i < (clearance + 1)
-                      or j > (world.shape[1] - clearance - 2) or j < (clearance + 1)):  # out of bounds
-                    return False
-        break
     return True
 
 
