@@ -114,7 +114,7 @@ class State():
                     or y > self.state.shape[1] - 1 or y < 0):  # out of bounds
                 return -1
 
-            if self.state[x, y] == (-1):  # collide with static obstacle
+            if self.state[x, y] == (1):  # collide with static obstacle
                 return -2
 
         # none of the above
@@ -236,11 +236,11 @@ class State():
         # If not, use Shape0
         if agent_dir % 2 == 0:
             shape = self.shape0
-            angle = agent_dir / 2 * np.pi
+            angle = agent_dir / 2 * 90
         # Else, use Shape1
         else:
             shape = self.shape1
-            angle = (agent_dir - 1) / 2 * np.pi
+            angle = (agent_dir - 1) / 2 * 90
 
         # Calculate the rotation Matrix
         angle_rad = np.radians(angle)
@@ -293,7 +293,7 @@ class AutoPark_Env(gym.Env):
         self.init_robot_state = None  # might have some problems here
 
         self.accumulated_reward = 0
-        self.episode_length = 200
+        self.episode_length = EPISODE_LENGTH
 
         self.done = False
 
@@ -366,13 +366,14 @@ class AutoPark_Env(gym.Env):
             return pklot_world
 
         else:
+            print("not available")
             pklot_world = self.init_parkinglots(world_size, parklot_size)
             return pklot_world
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world):
         # pos_x and pos_y refer to the center point coordinate of the robot
-        coord_x, coord_y = np.random.randint(0, world.shape[0]), np.random.randint(0, world.shape[1])
+        coord_x, coord_y = np.random.randint(3, world.shape[0]-3), np.random.randint(3, world.shape[1]-3)
         # randomly generate a heading of the robot
         dir = random.randint(0, 7)
         init_robot_pos_coord = [coord_x, coord_y]
@@ -394,6 +395,7 @@ class AutoPark_Env(gym.Env):
             # init_robot_hitbox = init_hitbox
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
+            print("not available")
             init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world)
             return init_robot_pos, init_robot_dir, init_robot_hitbox
 
@@ -507,12 +509,8 @@ def check_available(target, world):  # check whether the target(60*60)(could be 
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
             if target[i][j] != 0:
-                if target[i][j] == world[i][j]:
-                    return False
-                elif (i > (world.shape[0] - clearance - 2) or i < (clearance + 1)
-                      or j > (world.shape[1] - clearance - 2) or j < (clearance + 1)):  # out of bounds
-                    return False
-        break
+                if world[i][j] == 0:
+                    return True
     return True
 
 
