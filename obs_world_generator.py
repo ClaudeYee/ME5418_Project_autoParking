@@ -127,7 +127,7 @@ def generate_obs(size, obstacle_ratio=10, remove_edge_ratio=3):
     world[-1, :] = world[0, :] = 1
     # nodes_obs = get_map_nodes(world)
     # return world, nodes_obs
-    world = np.ones_like(world) - world
+    # world = np.ones_like(world) - world
     return world
 
 def find_neighboring_one(matrix, i, j):
