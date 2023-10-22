@@ -217,8 +217,8 @@ class State():
                 rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
 
                 # see if within origin hitbox
-                if ((-1 * carShape[1]) < rotated_pixel_coords[0] < (carShape[0]) and
-                        (-1 * carShape[2]) < rotated_pixel_coords[1] < (carShape[2])):
+                if ((-1 * carShape[1])-0.5 < rotated_pixel_coords[0] < (carShape[0]+0.5) and
+                        (-1 * carShape[2])-0.5 < rotated_pixel_coords[1] < (carShape[2])+0.5):
                     # if so, add to shape1
                     shape1.append([x, y])
         return shape0, shape1
