@@ -154,6 +154,61 @@ def find_neighboring_one(matrix, i, j):
     return neighbors
 
 
+def generate_pklots(size, parklot_size, obs_world):
+    # Create the parking world
+    world_size = size
+    pklot_world = np.zeros(world_size)
+
+    # Generate the two parking lots directions
+    # 0: horizontal parking lot and 1: vertical parking lot
+    pklot1_dir = random.choice([0, 1])
+    pklot2_dir = random.choice([0, 1])
+
+    # From the parking lots size and direction generate two parking lot that will be added to the parking world
+    # via arrays of 1 if the parking lot is horizontal or 2 if it is vertical
+    def lots_generate(dir, num, pklot_size):
+        if dir == 0:
+            return num * np.ones(pklot_size)
+        else:
+            return num * np.transpose(np.ones(pklot_size))
+
+    pklot1 = lots_generate(pklot1_dir, 1, parklot_size)
+    pklot2 = lots_generate(pklot2_dir, 2, parklot_size)
+
+    # Add pklot1 to the world
+    x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0, pklot_world.shape[1] - pklot1.shape[1] + 1)
+    while np.all(pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]]) != 0:
+        x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0, pklot_world.shape[1] - pklot1.shape[1] + 1)
+    pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]] = pklot1
+
+    # Randomly choose positions for matrix2, ensuring no overlap with matrix1
+    while True:
+        x2, y2 = np.random.randint(0, pklot_world.shape[0] - pklot2.shape[0] + 1), np.random.randint(0, pklot_world.shape[1] - pklot2.shape[1] + 1)
+        if np.all(pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] == 0):
+            pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] = pklot2
+            break
+    # Check whether pklot_world has any conflict with obs_world
+    #TODO: --------------------------Remember to fix this function--------------------------------------
+    def place_available(pklot_world, obs_world):
+        obs = np.argwhere(obs_world > 0)
+        pklot = np.argwhere(pklot_world > 0)
+        comparison = np.equal(pklot[:, np.newaxis, :], obs)
+        if np.any(np.all(comparison, axis=2)):
+            return False
+        else:
+            return True
+
+    if place_available(pklot_world, obs_world):
+        pklot1_coord = [(2 * x1 + pklot1.shape[0]) / 2, (2 * y1 + pklot1.shape[1]) / 2]
+        pklot2_coord = [(2 * x2 + pklot2.shape[0]) / 2, (2 * y2 + pklot2.shape[1]) / 2]
+        return pklot_world, pklot1_coord, pklot2_coord
+
+    else:
+        print("Not available, retry to place two parkinglots")
+        pklot_world = generate_pklots(world_size, parklot_size, obs_world)
+        return pklot_world
+
+
 if __name__ == "__main__":
     image_save_path = "test_pictures/"
     map_size = [60, 60]

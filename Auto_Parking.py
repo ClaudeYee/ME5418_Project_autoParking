@@ -11,7 +11,7 @@ import random
 import math
 import copy
 # from gym.envs.classic_control import rendering
-from obs_world_generator import generate_obs
+from obs_pklots_generator import generate_obs, generate_pklots
 
 from parameter import *
 
@@ -286,8 +286,8 @@ class AutoPark_Env(gym.Env):
         self.robot_pos = None
         self.robot_dir = None
 
-        self.pklot1_pos = None
-        self.pklot2_pos = None
+        self.pklot1_coord = None        # shape: [1, 2]
+        self.pklot2_coord = None        # shape: [1, 2]
 
         # self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
@@ -305,7 +305,7 @@ class AutoPark_Env(gym.Env):
         #     world = world0.copy()
         # else:
         self.world_obs = self.init_obstacles()  # the obstacle channel of the world
-        self.world_pklot = self.init_parkinglots(self.world_size, self.parklot_size)
+        self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
         self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)      # NOTE: self.world_robot is robot_hitbox
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
@@ -313,62 +313,66 @@ class AutoPark_Env(gym.Env):
         world_obs = generate_obs(size=self.world_size)
         return world_obs
 
-    def init_parkinglots(self, world_size, parklot_size):
-        # Create the parking world
-        pklot_world = np.zeros(world_size)
+    def init_pklots(self):
+        world_pklots, self.pklot1_coord, self.pklot2_coord = generate_pklots(self.world_size, self.parklot_size, self.world_obs)
+        return world_pklots, self.pklot1_coord, self.pklot2_coord
 
-        # Generate the two parking lots directions
-        # 0: horizontal parking lot and 1: vertical parking lot
-        pklot1_dir = random.choice([0, 1])
-        pklot2_dir = random.choice([0, 1])
-
-        # From the parking lots size and direction generate two parking lot that will be added to the parking world
-        # via arrays of 1 if the parking lot is horizontal or 2 if it is vertical
-        def parklot_generate(dir, num, size):
-            if dir == 0:
-                return num * np.ones(size)
-            else:
-                return num * np.transpose(np.ones(size))
-
-        pklot1 = parklot_generate(pklot1_dir, 1, parklot_size)
-        pklot2 = parklot_generate(pklot2_dir, 2, parklot_size)
-
-        # Add pklot1 to the world
-        x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
-                                                                                                     pklot_world.shape[
-                                                                                                         1] -
-                                                                                                     pklot1.shape[
-                                                                                                         1] + 1)
-        while np.all(pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]]) != 0:
-            x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
-                                                                                                         pklot_world.shape[
-                                                                                                             1] -
-                                                                                                         pklot1.shape[
-                                                                                                             1] + 1)
-        pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]] = pklot1
-
-        # Randomly choose positions for matrix2, ensuring no overlap with matrix1
-        while True:
-            x2, y2 = np.random.randint(0, pklot_world.shape[0] - pklot2.shape[0] + 1), np.random.randint(0,
-                                                                                                         pklot_world.shape[
-                                                                                                             1] -
-                                                                                                         pklot2.shape[
-                                                                                                             1] + 1)
-            if np.all(pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] == 0):
-                pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] = pklot2
-                break
-
-        if check_available(pklot_world, self.world_obs):
-
-            self.pklot1_pos = [(2 * x1 + pklot1.shape[0]) / 2, (2 * y1 + pklot1.shape[1]) / 2]
-            self.pklot2_pos = [(2 * x2 + pklot2.shape[0]) / 2, (2 * y2 + pklot2.shape[1]) / 2]
-
-            return pklot_world
-
-        else:
-            print("not available")
-            pklot_world = self.init_parkinglots(world_size, parklot_size)
-            return pklot_world
+    # def init_parkinglots(self, world_size, parklot_size):
+    #     # Create the parking world
+    #     pklot_world = np.zeros(world_size)
+    #
+    #     # Generate the two parking lots directions
+    #     # 0: horizontal parking lot and 1: vertical parking lot
+    #     pklot1_dir = random.choice([0, 1])
+    #     pklot2_dir = random.choice([0, 1])
+    #
+    #     # From the parking lots size and direction generate two parking lot that will be added to the parking world
+    #     # via arrays of 1 if the parking lot is horizontal or 2 if it is vertical
+    #     def parklot_generate(dir, num, size):
+    #         if dir == 0:
+    #             return num * np.ones(size)
+    #         else:
+    #             return num * np.transpose(np.ones(size))
+    #
+    #     pklot1 = parklot_generate(pklot1_dir, 1, parklot_size)
+    #     pklot2 = parklot_generate(pklot2_dir, 2, parklot_size)
+    #
+    #     # Add pklot1 to the world
+    #     x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
+    #                                                                                                  pklot_world.shape[
+    #                                                                                                      1] -
+    #                                                                                                  pklot1.shape[
+    #                                                                                                      1] + 1)
+    #     while np.all(pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]]) != 0:
+    #         x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
+    #                                                                                                      pklot_world.shape[
+    #                                                                                                          1] -
+    #                                                                                                      pklot1.shape[
+    #                                                                                                          1] + 1)
+    #     pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]] = pklot1
+    #
+    #     # Randomly choose positions for matrix2, ensuring no overlap with matrix1
+    #     while True:
+    #         x2, y2 = np.random.randint(0, pklot_world.shape[0] - pklot2.shape[0] + 1), np.random.randint(0,
+    #                                                                                                      pklot_world.shape[
+    #                                                                                                          1] -
+    #                                                                                                      pklot2.shape[
+    #                                                                                                          1] + 1)
+    #         if np.all(pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] == 0):
+    #             pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] = pklot2
+    #             break
+    #
+    #     if check_available(pklot_world, self.world_obs):
+    #
+    #         self.pklot1_pos = [(2 * x1 + pklot1.shape[0]) / 2, (2 * y1 + pklot1.shape[1]) / 2]
+    #         self.pklot2_pos = [(2 * x2 + pklot2.shape[0]) / 2, (2 * y2 + pklot2.shape[1]) / 2]
+    #
+    #         return pklot_world
+    #
+    #     else:
+    #         print("not available")
+    #         pklot_world = self.init_parkinglots(world_size, parklot_size)
+    #         return pklot_world
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world):
@@ -448,10 +452,9 @@ class AutoPark_Env(gym.Env):
             reward = final_reward
         else:
             # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking lot 2)
-            a = np.array(list(robot_pos)) - np.array(self.pklot1_pos)
-            print("test", a[1])
-            dist_to_pklot1 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot1_pos))
-            dist_to_pklot2 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot2_pos))
+            # a = np.array(list(robot_pos)) - np.array(self.pklot1_coord)
+            dist_to_pklot1 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot1_coord))
+            dist_to_pklot2 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot2_coord))
             # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
             dist_reward1 = self.dist_reward_param * (1 / dist_to_pklot1)
             dist_reward2 = self.dist_reward_param * (1 / dist_to_pklot2)
