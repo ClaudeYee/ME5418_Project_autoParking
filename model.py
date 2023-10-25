@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 
 class ActorNet(nn.Module):
     class obs_robot_world1(nn.Module):
@@ -91,5 +93,37 @@ class ActorNet(nn.Module):
                 return self.pklot_world(x)
 
 
+
 class CriticNet(nn.Module):
     pass
+
+
+class CNNBlock(nn.Module):
+    def __init__(self, in_channel, output_dim=512):
+        super(CNNBlock, self).__init__()
+        # conv -> ReLU -> pooling
+        self.cnn_layer1 = nn.Sequential(nn.Conv2d(in_channels=in_channel, out_channels=160, kernel_size=7),
+                                        nn.BatchNorm2d(160),
+                                        nn.ReLU(inplace=True))      # [54, 54, 160]
+        self.cnn_layer2 = nn.Sequential(nn.Conv2d(in_channels=160, out_channels=320, kernel_size=23),
+                                        nn.BatchNorm2d(320),
+                                        nn.ReLU(inplace=True))      # [32, 32, 320]
+        self.cnn_layer3 = nn.Sequential(nn.Conv2d(in_channels=320, out_channels=64, kernel_size=24),
+                                        nn.BatchNorm2d(64),
+                                        nn.ReLU(inplace=True))      # [9, 9, 64]
+        self.cnn_layer4 = nn.Sequential(nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+                                        nn.BatchNorm2d(64),
+                                        nn.ReLU(inplace=True))      # [7, 7, 64]
+        self.fc_dropout_layer5 = nn.Sequential(nn.Dropout2d(),
+                                               nn.Linear(3136, 1024),
+                                               nn.ReLU(inplace=True))   # [1024, 1]
+        self.fc_layer6 = nn.Sequential(nn.Linear(1024, output_dim))     # [512. 1]
+
+    def forward(self, x):
+        embedding_output = self.cnn_layer1(x)
+        embedding_output = self.cnn_layer2(embedding_output)
+        embedding_output = self.cnn_layer3(embedding_output)
+        embedding_output = self.cnn_layer4(embedding_output)
+        embedding_output = self.fc_dropout_layer5(embedding_output)
+        output = self.fc_layer6(embedding_output)
+        return output
