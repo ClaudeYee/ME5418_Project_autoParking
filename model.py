@@ -127,3 +127,16 @@ class CNNBlock(nn.Module):
         embedding_output = self.fc_dropout_layer5(embedding_output)
         output = self.fc_layer6(embedding_output)
         return output
+
+class CNN_LTSM(nn.Module):
+    def __init__(self, in_channel, lstm_layers, output_dim=512):
+        super(CNN_LTSM, self).__init__()
+        # CNNBlock -> LSTM
+        self.cnn = nn.Sequential(CNNBlock(in_channel, output_dim))
+        self.lstm = nn.Sequential(nn.LSTM(input_size=output_dim, hidden_size=output_dim, num_layers=lstm_layers))
+
+    def forward(self,x):
+        embedding_output = self.cnn(x)
+        output = self.lstm(embedding_output)
+
+        return output
