@@ -99,22 +99,22 @@ class CNNBlock(nn.Module):
         # conv -> ReLU
         self.cnn_layer1 = nn.Sequential(nn.Conv2d(in_channels=in_channel, out_channels=160, kernel_size=7),
                                         nn.BatchNorm2d(160),
-                                        nn.ReLU(inplace=True))      # [54, 54, 160]
+                                        nn.ReLU(inplace=True))  # [54, 54, 160]
         self.cnn_layer2 = nn.Sequential(nn.Conv2d(in_channels=160, out_channels=320, kernel_size=23),
                                         nn.BatchNorm2d(320),
-                                        nn.ReLU(inplace=True))      # [32, 32, 320]
+                                        nn.ReLU(inplace=True))  # [32, 32, 320]
         self.cnn_layer3 = nn.Sequential(nn.Conv2d(in_channels=320, out_channels=64, kernel_size=24),
                                         nn.BatchNorm2d(64),
-                                        nn.ReLU(inplace=True))      # [9, 9, 64]
+                                        nn.ReLU(inplace=True))  # [9, 9, 64]
         self.cnn_layer4 = nn.Sequential(nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
                                         nn.BatchNorm2d(64),
-                                        nn.ReLU(inplace=True))      # [7, 7, 64]
+                                        nn.ReLU(inplace=True))  # [7, 7, 64]
         # dropout -> fc -> ReLU
         self.fc_dropout_layer5 = nn.Sequential(nn.Dropout(),
                                                nn.Linear(3136, 1024),
-                                               nn.ReLU(inplace=True))   # [1024, 1]
+                                               nn.ReLU(inplace=True))  # [1024, 1]
         # fc
-        self.fc_layer6 = nn.Linear(1024, output_dim)     # [512, 1]
+        self.fc_layer6 = nn.Linear(1024, output_dim)  # [512, 1]
 
     def forward(self, x):
         embedding_output = self.cnn_layer1(x)
@@ -174,7 +174,10 @@ class FullModel(nn.Module):
         critic_outcome, (h_nv, c_nv) = self.critic(x)
         return actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv)
 
+
 loss_function = nn.MSELoss()
+
+
 class FullModelTester:
     def __init__(self):
         self.model = self.load_model()
@@ -199,6 +202,7 @@ class FullModelTester:
         else:
             return False
 
+
 if __name__ == "__main__":
 
     batch_size = 1
@@ -206,15 +210,34 @@ if __name__ == "__main__":
     height = 60
     width = 60
     num_actions = 18
-    
+
     expected_actor_shape = (batch_size, num_actions)
     expected_critic_shape = (batch_size, 1)
 
+    actor_target = torch.randn(1, 18)
+    print(actor_target.shape)
+    # critic_target = torch.randn(1, 1)
+
+    loss_function_actor = nn.MSELoss()
+    # loss_function_critic = nn.MSELoss()
+
     tester = FullModelTester()
 
-    sample_input = torch.randn(batch_size, channels, height, width)
+    sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True)
 
     actor_outcome, critic_outcome = tester.test_with_input(sample_input)
+    print(actor_outcome.shape)
+
+    loss_actor = loss_function_actor(actor_outcome, actor_target)
+    print(loss_actor)
+    loss_actor.requires_grad = True
+    # loss_critic = loss_function_critic(critic_outcome, critic_target)
+
+    loss_actor.backward()
+    # loss_critic.backward()
+
+    is_grad_correct_actor = gradcheck(loss_function_actor)
+    print(is_grad_correct_actor)
 
     print("Actor Outcome: ", actor_outcome)
     print("Actor Outcome Shape: ", actor_outcome.shape)
