@@ -109,7 +109,7 @@ class CNNBlock(nn.Module):
                                         nn.BatchNorm2d(64),
                                         nn.ReLU(inplace=True))      # [7, 7, 64]
         # dropout -> fc -> ReLU
-        self.fc_dropout_layer5 = nn.Sequential(nn.Dropout2d(),
+        self.fc_dropout_layer5 = nn.Sequential(nn.Dropout(),
                                                nn.Linear(3136, 1024),
                                                nn.ReLU(inplace=True))   # [1024, 1]
         # fc
@@ -120,17 +120,10 @@ class CNNBlock(nn.Module):
         embedding_output = self.cnn_layer2(embedding_output)
         embedding_output = self.cnn_layer3(embedding_output)
         embedding_output = self.cnn_layer4(embedding_output)
-        print("Before reshape and before layer 5: ", embedding_output.shape)
-        # The shape needed to be changed before using the nn.Linear function in the fc_dropout_layer5 and fc_layer6
-        # But I am not sure that is the correct way to do maybe we should rethink the layer5 and layer6 or our shapes?
         embedding_output = embedding_output.view(1, -1)
-        print("After reshape and before layer 5: ", embedding_output.shape)
         embedding_output = self.fc_dropout_layer5(embedding_output)
-        print("After layer 5 and before layer 6: ", embedding_output.shape)
         output = self.fc_layer6(embedding_output)
-        print("Before reshape and after layer 6: ", output.shape)
-        output = output.view(1, 1, 512, 1)
-        print("After reshape and after layer 6: ", output.shape)
+
         return output
 
 
@@ -176,10 +169,9 @@ class FullModel(nn.Module):
         self.critic = CriticNet(in_channel, lstm_layers, output_dim)
 
     def forward(self, x):
-        features = self.cnn(x)
-        action_probabilities = self.actor(features)
-        value_estimate = self.critic(features)
-        return action_probabilities, value_estimate
+        actor_outcome, (h_np, c_np) = self.actor(x)
+        critic_outcome, (h_nv, c_nv) = self.critic(x)
+        return actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv)
 
 
 class FullModelTester:
@@ -193,15 +185,15 @@ class FullModelTester:
 
     def test_with_input(self, sample_input):
         with torch.no_grad():
-            actor_output, critic_output = self.model(sample_input)
+            actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv) = self.model(sample_input)
 
-        return actor_output, critic_output
+        return actor_outcome, critic_outcome
 
-    def check_output_dimensions(self, actor_output, critic_output, expected_actor_shape, expected_critic_shape):
-        actor_shape = actor_output.shape
-        critic_shape = critic_output.shape
+    def check_output_dimensions(self, actor_outcome, critic_outcome, expected_actor_shape, expected_critic_shape):
+        actor_outcome_shape = actor_outcome.shape
+        critic_outcome_shape = critic_outcome.shape
 
-        if actor_shape == expected_actor_shape and critic_shape == expected_critic_shape:
+        if actor_outcome_shape == expected_actor_shape and critic_outcome_shape == expected_critic_shape:
             return True
         else:
             return False
@@ -221,9 +213,16 @@ if __name__ == "__main__":
 
     sample_input = torch.randn([batch_size, channels, height, width])
 
-    actor_output, critic_output = tester.test_with_input(sample_input)
+    actor_outcome, critic_outcome = tester.test_with_input(sample_input)
 
-    result = tester.check_output_dimensions(actor_output, critic_output, expected_actor_shape, expected_critic_shape)
+    print("Actor Outcome: ", actor_outcome)
+    print("Actor Outcome Shape: ", actor_outcome.shape)
+    print("\n")
+    print("Critic Outcome: ", critic_outcome)
+    print("Critic Outcome Shape: ", critic_outcome.shape)
+    print("\n")
+
+    result = tester.check_output_dimensions(actor_outcome, critic_outcome, expected_actor_shape, expected_critic_shape)
 
     if result:
         print("Model passed the dimension check")
