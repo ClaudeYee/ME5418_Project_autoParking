@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="me5418project" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="ME5418" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.10" project-jdk-type="Python SDK" />
 </project>
