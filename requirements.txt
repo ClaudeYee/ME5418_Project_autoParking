@@ -1,0 +1,12 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-64
+python>=3.9
+
+# Once installed and activated, please run
+# pip install --user numpy>=1.26 gym==0.26.2 scikit-image==0.21.0 torch==2.1.0
+
+numpy>=1.26
+gym==0.26.2
+scikit-image==0.21.0
+torch==2.1.0
