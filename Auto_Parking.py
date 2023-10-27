@@ -15,6 +15,8 @@ from obs_pklots_generator import generate_obs, generate_pklots
 
 from parameter import *
 
+from test2 import ActorNet, CriticNet
+
 '''
     Observation: (position maps of current agent, current goal, obstacles), vector to goal (vx, vy, norm_v)
 
