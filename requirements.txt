@@ -4,9 +4,11 @@
 python>=3.9
 
 # Once installed and activated, please run
-# pip install --user numpy>=1.26 gym==0.26.2 scikit-image==0.21.0 torch==2.1.0
+# pip install --user numpy>=1.26 gym==0.26.2 scikit-image==0.21.0 torch==2.1.0 matplotlib==3.8.0
+
 
 numpy>=1.26
 gym==0.26.2
 scikit-image==0.21.0
 torch==2.1.0
+matplotlib==3.8.0
