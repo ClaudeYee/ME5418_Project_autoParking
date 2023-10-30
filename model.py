@@ -44,6 +44,7 @@ class CNNBlock(nn.Module):
 class ActorNet(nn.Module):
     def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=18):
         super(ActorNet, self).__init__()
+        in_channel =
         # CNNBlock + LSTM
         self.cnn = CNNBlock(in_channel, output_dim)
         self.lstm = nn.LSTM(input_size=output_dim, hidden_size=output_dim, num_layers=lstm_layers, batch_first=True)

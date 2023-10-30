@@ -280,7 +280,7 @@ class AutoPark_Env(gym.Env):
         self.world_obs = None
         self.world_pklot = None
         self.world_robot = None
-        self.world = None  # world has two channels: world_obs, world_pklot, world_robot. (3, 40, 40)
+        self.world = None  # world has two channels: world_obs, world_pklot, world_robot. (3, 60, 60)
 
         self.init_robot_pos = None
         self.init_robot_dir = None
@@ -293,6 +293,11 @@ class AutoPark_Env(gym.Env):
 
         # self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
+
+        # save the robot state, the action, and the reward at each timestep for this episode
+        self.robot_states = []
+        self.actions = []
+        self.rewards = []
 
         self.accumulated_reward = 0
         self.episode_length = EPISODE_LENGTH
@@ -318,63 +323,6 @@ class AutoPark_Env(gym.Env):
     def init_pklots(self):
         world_pklots, self.pklot1_coord, self.pklot2_coord = generate_pklots(self.world_size, self.parklot_size, self.world_obs)
         return world_pklots, self.pklot1_coord, self.pklot2_coord
-
-    # def init_parkinglots(self, world_size, parklot_size):
-    #     # Create the parking world
-    #     pklot_world = np.zeros(world_size)
-    #
-    #     # Generate the two parking lots directions
-    #     # 0: horizontal parking lot and 1: vertical parking lot
-    #     pklot1_dir = random.choice([0, 1])
-    #     pklot2_dir = random.choice([0, 1])
-    #
-    #     # From the parking lots size and direction generate two parking lot that will be added to the parking world
-    #     # via arrays of 1 if the parking lot is horizontal or 2 if it is vertical
-    #     def parklot_generate(dir, num, size):
-    #         if dir == 0:
-    #             return num * np.ones(size)
-    #         else:
-    #             return num * np.transpose(np.ones(size))
-    #
-    #     pklot1 = parklot_generate(pklot1_dir, 1, parklot_size)
-    #     pklot2 = parklot_generate(pklot2_dir, 2, parklot_size)
-    #
-    #     # Add pklot1 to the world
-    #     x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
-    #                                                                                                  pklot_world.shape[
-    #                                                                                                      1] -
-    #                                                                                                  pklot1.shape[
-    #                                                                                                      1] + 1)
-    #     while np.all(pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]]) != 0:
-    #         x1, y1 = np.random.randint(0, pklot_world.shape[0] - pklot1.shape[0] + 1), np.random.randint(0,
-    #                                                                                                      pklot_world.shape[
-    #                                                                                                          1] -
-    #                                                                                                      pklot1.shape[
-    #                                                                                                          1] + 1)
-    #     pklot_world[x1:x1 + pklot1.shape[0], y1:y1 + pklot1.shape[1]] = pklot1
-    #
-    #     # Randomly choose positions for matrix2, ensuring no overlap with matrix1
-    #     while True:
-    #         x2, y2 = np.random.randint(0, pklot_world.shape[0] - pklot2.shape[0] + 1), np.random.randint(0,
-    #                                                                                                      pklot_world.shape[
-    #                                                                                                          1] -
-    #                                                                                                      pklot2.shape[
-    #                                                                                                          1] + 1)
-    #         if np.all(pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] == 0):
-    #             pklot_world[x2:x2 + pklot2.shape[0], y2:y2 + pklot2.shape[1]] = pklot2
-    #             break
-    #
-    #     if check_available(pklot_world, self.world_obs):
-    #
-    #         self.pklot1_pos = [(2 * x1 + pklot1.shape[0]) / 2, (2 * y1 + pklot1.shape[1]) / 2]
-    #         self.pklot2_pos = [(2 * x2 + pklot2.shape[0]) / 2, (2 * y2 + pklot2.shape[1]) / 2]
-    #
-    #         return pklot_world
-    #
-    #     else:
-    #         print("not available")
-    #         pklot_world = self.init_parkinglots(world_size, parklot_size)
-    #         return pklot_world
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world):
@@ -408,7 +356,7 @@ class AutoPark_Env(gym.Env):
     def step(self, robot_state, done=False):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
         # and change the state of our robot and the different parameters accordingly
-        ## For now, randomly sample an action from the valid action space for testing without training
+        ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         action = select_valid_action(robot_state)
         self.save_action(action)
 
@@ -423,11 +371,13 @@ class AutoPark_Env(gym.Env):
 
         return robot_state, reward, done
 
-    def run_episode(self):
+    def run_episode(self, t):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
         self.save_robot_state(robot_state)  # save the initial robot state
         for i in range(self.episode_length):
+            # increment timesteps run this batch so far
+            t += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
             robot_state, reward, done = self.step(robot_state=robot_state, done=done)
             self.world_robot = robot_state.next_hitbox
@@ -467,25 +417,28 @@ class AutoPark_Env(gym.Env):
             reward = dist_reward + negative_reward
         return reward
 
+    def reset(self):
+        self.init_world()
+
     def save_robot_state(self, robot_state):
-        pass
+        self.robot_states.append(robot_state)
 
     def save_reward(self, reward):
-        pass
+        self.rewards.append(reward)
 
     def save_action(self, action):
-        pass
+        self.actions.append(action)
 
     def save_accumulated_reward(self, accumulated_reward):
         pass
 
-    def get_world_obs(self):
+    def print_world_obs(self):
         print(self.world_obs)
 
-    def get_world_pklot(self):
+    def print_world_pklot(self):
         print(self.world_pklot)
 
-    def get_world_robot(self):
+    def print_world_robot(self):
         print(self.world_robot)
 
     # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
@@ -518,7 +471,7 @@ def check_available(target, world):  # check whether the target(60*60)(could be 
                     return True
     return True
 
-
+# For now, the action is randomly selected
 def select_valid_action(robot_state):
     action = robot_state.sample_action()
     action_validity = robot_state.moveValidity(action)
