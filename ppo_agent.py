@@ -42,25 +42,38 @@ class Agent():
             self.env.run_episode(t)
 
 
-class Rollout(object):
-    def __init__(self, capacity):
+from typing import List, Tuple, Any
+import numpy as np
+from collections import deque
+
+
+class Rollout:
+    def __init__(self, capacity: int) -> None:
         self.capacity = capacity
-        self.buffer = []
+        self.buffer = deque(maxlen=capacity)
         self.position = 0
 
-    def add(self, state, action, reward, next_state):
+    def add(self, state: Any, action: Any, reward: Any, next_state: Any) -> None:
+
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
         self.buffer[self.position] = (state, action, reward, next_state)
         self.position = (self.position + 1) % self.capacity
 
-    def sample(self, batch_size):
+    def sample(self, batch_size: int) -> Tuple[List[Any], List[Any], List[Any], List[Any]]:
+
+        if batch_size > len(self.buffer):
+            raise ValueError("Batch size cannot be greater than the buffer size.")
+
         sample_indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         states, actions, rewards, next_states = zip(*[self.buffer[i] for i in sample_indices])
         return states, actions, rewards, next_states
 
-    def __len__(self):
+    def __len__(self) -> int:
+
         return len(self.buffer)
+
+
 
 
 
