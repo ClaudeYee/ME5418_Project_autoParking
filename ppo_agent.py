@@ -42,6 +42,27 @@ class Agent():
             self.env.run_episode(t)
 
 
+class Rollout(object):
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.buffer = []
+        self.position = 0
+
+    def add(self, state, action, reward, next_state):
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(None)
+        self.buffer[self.position] = (state, action, reward, next_state)
+        self.position = (self.position + 1) % self.capacity
+
+    def sample(self, batch_size):
+        sample_indices = np.random.choice(len(self.buffer), batch_size, replace=False)
+        states, actions, rewards, next_states = zip(*[self.buffer[i] for i in sample_indices])
+        return states, actions, rewards, next_states
+
+    def __len__(self):
+        return len(self.buffer)
+
+
 
 if __name__ == "__main__":
     env = AutoPark_Env()
