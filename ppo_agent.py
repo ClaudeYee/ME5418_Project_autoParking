@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
+from typing import List, Tuple, Any
+import numpy as np
+from collections import deque
 
 import random
 import numpy as np
@@ -40,12 +43,6 @@ class Agent():
         while t < self.timesteps_batch:
             # rewards in this episode
             self.env.run_episode(t)
-
-
-from typing import List, Tuple, Any
-import numpy as np
-from collections import deque
-
 
 class Rollout:
     def __init__(self, capacity: int) -> None:
