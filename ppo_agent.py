@@ -44,33 +44,24 @@ class Agent():
             # rewards in this episode
             self.env.run_episode(t)
 
-class Rollout:
-    def __init__(self, capacity: int) -> None:
-        self.capacity = capacity
-        self.buffer = deque(maxlen=capacity)
-        self.position = 0
+    def rollout(self):
+        batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
+        state = self.env.reset()
+        for _ in range(self.timesteps_batch):
+            action, action_prob = self.actor_net(state)
+            next_state, reward, done = self.env.step(action)
 
-    def add(self, state: Any, action: Any, reward: Any, next_state: Any) -> None:
+            batch_data['states'].append(state)
+            batch_data['actions'].append(action)
+            batch_data['rewards'].append(reward)
+            batch_data['action_probs'].append(action_prob)
+            batch_data['dones'].append(done)
 
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(None)
-        self.buffer[self.position] = (state, action, reward, next_state)
-        self.position = (self.position + 1) % self.capacity
+            state = next_state
+            if done:
+                break
 
-    def sample(self, batch_size: int) -> Tuple[List[Any], List[Any], List[Any], List[Any]]:
-
-        if batch_size > len(self.buffer):
-            raise ValueError("Batch size cannot be greater than the buffer size.")
-
-        sample_indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, next_states = zip(*[self.buffer[i] for i in sample_indices])
-        return states, actions, rewards, next_states
-
-    def __len__(self) -> int:
-
-        return len(self.buffer)
-
-
+        return batch_data
 
 
 
