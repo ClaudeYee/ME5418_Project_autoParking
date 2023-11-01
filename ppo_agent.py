@@ -35,10 +35,10 @@ class Agent():
 
         self.writer = SummaryWriter("./exp")
 
-    def learn(self, total_t):
-        # Timestep so far
-        t_so_far = 0
-        while t_so_far < total_t:
+    def learn(self, total_k):
+        # Training epoch
+        k = 0
+        while k < total_k:
 
         # Timesteps run so far in this batch
         t = 0
@@ -46,6 +46,15 @@ class Agent():
             # rewards in this episode
             self.env.run_episode(t)
 
+    # ----------------------------------------- rollout data shapes ------------------------------------------------ #
+        # batch_states: [number of timesteps each batch, states dimensions]
+        # batch_actions: [numbwe of timesteps each batch, action dimensions]
+        # batch_log_prob(log probability): [number of timesteps each batch]
+        # batch_rewards: [number of episodes, number of timesteps per episode]
+        # batch_accumulated_rewards: [number of timesteps per batch]
+        # batch_episode_length: [number of episodes]
+
+    # -------------------------------------------------------------------------------------------------------------- #
     def rollout(self):
         batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
         state = self.env.reset()

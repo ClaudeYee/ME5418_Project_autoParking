@@ -300,9 +300,10 @@ class AutoPark_Env(gym.Env):
         # save the robot state, the action, and the reward at each timestep for this episode
         self.robot_states = []
         self.actions = []
+        self.log_probs = []
         self.rewards = []
+        self.accumulated_rewards = []
 
-        self.accumulated_reward = 0
         self.episode_length = EPISODE_LENGTH
 
         self.done = False
@@ -360,9 +361,10 @@ class AutoPark_Env(gym.Env):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
         # and change the state of our robot and the different parameters accordingly
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
-        action = select_valid_action(robot_state)
+        # action = select_valid_action(robot_state)
+        action, log_prob = self.act(robot_state)
         self.save_action(action)
-
+        self.save_log_prob(log_prob)
         # robot_state transition
         robot_state.moveAgent(action)
         next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action)
@@ -432,6 +434,9 @@ class AutoPark_Env(gym.Env):
     def save_action(self, action):
         self.actions.append(action)
 
+    def save_log_prob(self, log_prob):
+        self.log_probs.append(log_prob)
+
     def save_accumulated_reward(self, accumulated_reward):
         pass
 
@@ -452,7 +457,7 @@ class AutoPark_Env(gym.Env):
         # We will firstly set Probability of invalid action to zero
         for i, prob in enumerate(action_distribution):
             action_indix = [i // 9, i % 9]
-            if robot_state.moveVidility(action_indix) !=0:
+            if robot_state.moveVidility(action_indix) != 0:
                 prob = 0
 
         # re-normalize the distribution
@@ -475,7 +480,6 @@ class AutoPark_Env(gym.Env):
 
         action_indix = [selected_index // 9, selected_index % 9]
         robot_state.moveAgent(action_indix)
-
 
     # Plot the environment for every step
     def plot_env(self, step):
@@ -502,6 +506,7 @@ def check_available(target, world):  # check whether the target(60*60)(could be 
                 if world[i][j] == 0:
                     return True
     return True
+
 
 # For now, the action is randomly selected
 def select_valid_action(robot_state):
