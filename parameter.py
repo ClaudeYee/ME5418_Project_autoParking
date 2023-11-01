@@ -11,4 +11,7 @@ TIMESTEPS_BATCH = 480
 BATCH_SIZE = 128
 GAMMA = 1
 
+LR = 0.005
+CLIP = 0.2
+
 IMG_SAVE_PATH = "test_pictures"

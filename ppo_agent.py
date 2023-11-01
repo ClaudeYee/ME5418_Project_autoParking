@@ -33,6 +33,7 @@ class Agent():
 
         self.gamma = GAMMA
 
+
         self.writer = SummaryWriter("./exp")
 
     def learn(self, total_k):
@@ -55,6 +56,52 @@ class Agent():
         # batch_episode_length: [number of episodes]
 
     # -------------------------------------------------------------------------------------------------------------- #
+
+            # Calculate advantage at k-th iteration
+            V = self.evaluate(batch_states)
+            # detach is used to create a independent copy of a tensor
+            # batch_rtgs is the reward to get
+            A_k = batch_rewards - V.detach()
+
+            # Normalizing advantages
+            # 1e-10 is added to prevent a zero Denominator
+            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+
+            # This is the loop where we update our network for some n epochs
+            for _ in range(self.n_updates_per_iteration):  # ALG STEP 6 & 7
+                # Calculate V_phi and pi_theta(a_t | s_t)
+                v_value = self.evaluate(batch_states)
+                # TODO: a function to calculate log_probs is needed
+                curr_log_probs = self.get_log_probs(batch_states)
+
+                # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
+                # subtract the logs is the same as
+                # dividing the values and then canceling the log with e^log.
+                # TL;DR makes gradient ascent easier behind the scenes.
+                ratios = torch.exp(curr_log_probs - batch_log_probs)
+
+                # Calculate surrogate losses.
+                # A_k is the advantage at k-th iteration
+                surr1 = ratios * A_k
+                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+
+                # Calculate actor and critic losses.
+                # NOTE: we take the negative min of the surrogate losses because we're trying to maximize
+                # the performance function, but Adam minimizes the loss. So minimizing the negative
+                # performance function maximizes it.
+                actor_loss = (-torch.min(surr1, surr2)).mean()
+                critic_loss = nn.MSELoss()(V, batch_rewards)
+
+                # Calculate gradients and perform backward propagation for actor network
+                self.actor_optim.zero_grad()
+                actor_loss.backward(retain_graph=True)
+                self.actor_optim.step()
+
+                # Calculate gradients and perform backward propagation for critic network
+                self.critic_optim.zero_grad()
+                critic_loss.backward()
+                self.critic_optim.step()
+
     def rollout(self):
         batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
         state = self.env.reset()
@@ -91,6 +138,43 @@ class Agent():
         v_value = self.critic_net(batch_states)
         # compute log probability of batch_actions using the most recent actor_net
         return v_value
+
+    def act(self, state):
+        # Queries an action from the actor network, should be called from rollout.
+        # input is the state at the current timestep
+        # Return the probability of the selected action in the distribution
+
+        # Query the actor network for a mean action
+        action_distribution = self.actor_net(state)
+
+        # We will firstly set Probability of invalid action to zero
+        for i in len(action_distribution):
+            action_index = [i // 9, i % 9]
+            if state.moveVidility(action_index) !=0:
+                prob = 0
+
+            # re-normalize the distribution
+            total_probability = sum(action_distribution)
+            normalized_probabilities = [p / total_probability for p in action_distribution]
+            action_distribution = normalized_probabilities
+
+            # get an action from the distribution
+            cumulative_probability = 0
+            selected_index = 0
+
+            # generate a random number to select a action
+            random_number = random.random()
+
+            for i, prob in enumerate(action_distribution):
+                cumulative_probability += prob
+                if random_number < cumulative_probability:
+                    selected_index = i
+                    break
+
+            action_index = [selected_index // 9, selected_index % 9]
+            prob = action_distribution(selected_index)
+
+        return action_index, prob
 
 
 
