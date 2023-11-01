@@ -172,6 +172,9 @@ class State():
         return action
 
     def get_new_coord_and_rotation_index_from_action(self, action):
+        # Here action is a list, the first element is the index for transition,
+        # And the second is s the index for rotation.
+        # The function generate new_coord for moveValidity.
         a = action[0]
         translation = self.translation_directions[a]
         rotation = action[1]
@@ -442,8 +445,37 @@ class AutoPark_Env(gym.Env):
         print(self.world_robot)
 
     # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
-    def act(self, actions):
-        pass
+    def act(self, robot_state, actions):
+        # action_distribution is a Probability distribution, 1*81 vector
+        action_distribution = actions.copy()
+
+        # We will firstly set Probability of invalid action to zero
+        for i, prob in enumerate(action_distribution):
+            action_indix = [i // 9, i % 9]
+            if robot_state.moveVidility(action_indix) !=0:
+                prob = 0
+
+        # re-normalize the distribution
+        total_probability = sum(action_distribution)
+        normalized_probabilities = [p / total_probability for p in action_distribution]
+        action_distribution = normalized_probabilities
+
+        # get an action from the distribution
+        cumulative_probability = 0
+        selected_index = 0
+
+        # generate a random number to select a action
+        random_number = random.random()
+
+        for i, prob in enumerate(action_distribution):
+            cumulative_probability += prob
+            if random_number < cumulative_probability:
+                selected_index = i
+                break
+
+        action_indix = [selected_index // 9, selected_index % 9]
+        robot_state.moveAgent(action_indix)
+
 
     # Plot the environment for every step
     def plot_env(self, step):
