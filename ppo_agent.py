@@ -27,9 +27,11 @@ class Agent():
         self.actor_net = ActorNet()
         self.critic_net = CriticNet()
 
-        self.timesteps_batch = TIMESTEPS_BATCH = 480
+        self.timesteps_batch = TIMESTEPS_BATCH
 
         self.buffer = []
+
+        self.gamma = GAMMA
 
         self.writer = SummaryWriter("./exp")
 
@@ -62,6 +64,24 @@ class Agent():
                 break
 
         return batch_data
+
+    # compute Q value
+    def compute_accumulated_rewards(self, batch_rewards):
+        batch_accumulated_rewards = []
+        for episode_rewards in reversed(batch_rewards):
+            discounted_reward = 0
+            for reward in reversed(episode_rewards):
+                discounted_reward = reward + discounted_reward * self.gamma
+                batch_accumulated_rewards.insert(0, discounted_reward)
+
+        batch_accumulated_rewards = torch.tensor(batch_accumulated_rewards, dtype=torch.float)
+        return batch_accumulated_rewards
+
+    def evaluate(self, batch_states):
+        # compute V value
+        v_value = self.critic_net(batch_states)
+        # compute log probability of batch_actions using the most recent actor_net
+        return v_value
 
 
 

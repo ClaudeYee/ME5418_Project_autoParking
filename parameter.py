@@ -9,5 +9,6 @@ EPISODE_LENGTH = 200        # The maximum steps that an episode can hold
 TIMESTEPS_BATCH = 480
 
 BATCH_SIZE = 128
+GAMMA = 1
 
 IMG_SAVE_PATH = "test_pictures"
