@@ -14,8 +14,10 @@ import copy
 from obs_pklots_generator import generate_obs, generate_pklots
 
 from parameter import *
+import torch
+from torch.distributions import Categorical
 
-from test2 import ActorNet, CriticNet
+# from test2 import ActorNet, CriticNet
 
 '''
     Observation: (position maps of current agent, current goal, obstacles), vector to goal (vx, vy, norm_v)
@@ -358,12 +360,12 @@ class AutoPark_Env(gym.Env):
             init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world)
             return init_robot_pos, init_robot_dir, init_robot_hitbox
 
-    def step(self, robot_state, done=False):
+    def step(self, actor_net, robot_state, done=False):
         # If the time step is still not done we can verify if the action is valid and if yes we can complete the action
         # and change the state of our robot and the different parameters accordingly
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         # action = select_valid_action(robot_state)
-        action, log_prob = self.act(robot_state)
+        action, log_prob = self.act(actor_net, robot_state)
         self.actions.append(action)
         self.log_probs.append(log_prob)
         # robot_state transition
@@ -377,7 +379,7 @@ class AutoPark_Env(gym.Env):
 
         return robot_state, reward, done
 
-    def run_episode(self, t):           # add t to record the number of timesteps run so far in this batch
+    def run_episode(self,actor_net , t):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
         self.robot_states.append(robot_state)  # save the initial robot state
@@ -386,7 +388,7 @@ class AutoPark_Env(gym.Env):
             # increment timesteps run this batch so far
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
-            robot_state, reward, done = self.step(robot_state=robot_state, done=done)
+            robot_state, reward, done = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
 
@@ -453,36 +455,32 @@ class AutoPark_Env(gym.Env):
         print(self.world_robot)
 
     # TODO: this function must be changed when writing code of training, now just randomly choose a valid action
-    # def act(self, robot_state, actions):
-    #     # action_distribution is a Probability distribution, 1*81 vector
-    #     action_distribution = actions.copy()
-    #
-    #     # We will firstly set Probability of invalid action to zero
-    #     for i, prob in enumerate(action_distribution):
-    #         action_indix = [i // 9, i % 9]
-    #         if robot_state.moveVidility(action_indix) != 0:
-    #             prob = 0
-    #
-    #     # re-normalize the distribution
-    #     total_probability = sum(action_distribution)
-    #     normalized_probabilities = [p / total_probability for p in action_distribution]
-    #     action_distribution = normalized_probabilities
-    #
-    #     # get an action from the distribution
-    #     cumulative_probability = 0
-    #     selected_index = 0
-    #
-    #     # generate a random number to select a action
-    #     random_number = random.random()
-    #
-    #     for i, prob in enumerate(action_distribution):
-    #         cumulative_probability += prob
-    #         if random_number < cumulative_probability:
-    #             selected_index = i
-    #             break
-    #
-    #     action_indix = [selected_index // 9, selected_index % 9]
-    #     robot_state.moveAgent(action_indix)
+    def act(self, actor_net, robot_state):
+        # Queries an action from the actor network, should be called from rollout.
+        # input is the state at the current timestep
+        # Return the probability of the selected action in the distribution
+
+        # Query the actor network for a mean action
+        action_distribution = actor_net(robot_state)
+
+        # We will firstly set Probability of invalid action to zero
+        for i in len(action_distribution):
+            action_index = [i // 9, i % 9]
+            if robot_state.moveVidility(action_index) !=0:
+                action_distribution[i] = 0
+
+            # re-normalize the distribution
+            total_probability = sum(action_distribution)
+            normalized_probabilities = [p / total_probability for p in action_distribution]
+
+            action_distribution = Categorical(torch.tensor(normalized_probabilities))
+
+            selected_index = action_distribution.sample()
+
+            action_index = [selected_index // 9, selected_index % 9]
+            log_prob = action_distribution.log_prob(selected_index)
+
+            return action_index, log_prob
 
     # Plot the environment for every step
     def plot_env(self, step):
