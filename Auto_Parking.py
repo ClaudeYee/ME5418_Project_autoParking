@@ -301,10 +301,11 @@ class AutoPark_Env(gym.Env):
         self.robot_states = []
         self.actions = []
         self.log_probs = []
-        self.rewards = []
-        self.accumulated_rewards = []
-
-        self.episode_length = EPISODE_LENGTH
+        self.rewards = []        # Note: rewards here refers to the rewards in one episode, shape: [this episode length]
+        # self.accumulated_rewards = []
+        # NOTE: episode_length could be less (task completed) or equal to max_episode_length (task failed)
+        self.episode_length = []
+        self.max_episode_length = MAX_EPISODE_LENGTH
 
         self.done = False
 
@@ -363,8 +364,8 @@ class AutoPark_Env(gym.Env):
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         # action = select_valid_action(robot_state)
         action, log_prob = self.act(robot_state)
-        self.save_action(action)
-        self.save_log_prob(log_prob)
+        self.actions.append(action)
+        self.log_probs.append(log_prob)
         # robot_state transition
         robot_state.moveAgent(action)
         next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action)
@@ -379,22 +380,24 @@ class AutoPark_Env(gym.Env):
     def run_episode(self, t):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
-        self.save_robot_state(robot_state)  # save the initial robot state
-        for i in range(self.episode_length):
+        self.robot_states.append(robot_state)  # save the initial robot state
+
+        for i in range(self.max_episode_length):
             # increment timesteps run this batch so far
-            t += 1
+            self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
             robot_state, reward, done = self.step(robot_state=robot_state, done=done)
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
-            
-            self.accumulated_reward += reward
-            self.save_robot_state(robot_state)
-            self.save_reward(reward)
+
+            self.robot_states.append(robot_state)   # save the state for each move
+            self.rewards.append(reward)             # save the reward for each move
+
             self.plot_env(step=i)
 
             if done:
-                self.save_accumulated_reward(self.accumulated_reward)
+                # self.save_accumulated_reward(self.accumulated_reward)
+                self.episode_length = i + 1         # record how many timesteps the robot has moved in this episode
                 print("The robot has successfully parked in the parking lot, task succeeded!")
                 break
         if not done:
