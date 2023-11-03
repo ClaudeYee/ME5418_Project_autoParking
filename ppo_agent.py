@@ -14,6 +14,7 @@ from model import ActorNet, CriticNet
 from Auto_Parking import AutoPark_Env
 from parameter import *
 
+
 # TODO: Remember to modify the reward function to satisfy our target!
 class Agent():
     def __init__(self, env):
@@ -70,10 +71,10 @@ class Agent():
                 print(self.episode_lengths)
 
                 # Calculate advantage at k-th iteration
-                V = self.evaluate(self.batch_states)
+
                 # detach is used to create a independent copy of a tensor
                 # batch_rtgs is the reward to get
-                A_k = batch_rewards - V.detach()
+
 
                 # Normalizing advantages
                 # 1e-10 is added to prevent a zero Denominator
@@ -118,6 +119,11 @@ class Agent():
             batch_actions = torch.tensor(self.batch_actions, dtype=torch.float)
             batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float)
             batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards)
+
+            v_value = self.evaluate(self.batch_states)
+            a_value = batch_accumulated_rewards - v_value.detach()
+            a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)
+
 
     # def rollout(self):
     #     batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
