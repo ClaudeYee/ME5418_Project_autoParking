@@ -303,6 +303,7 @@ class AutoPark_Env(gym.Env):
         self.robot_states = []
         self.actions = []
         self.log_probs = []
+        self.valid_actions = []
         self.rewards = []        # Note: rewards here refers to the rewards in one episode, shape: [this episode length]
         # self.accumulated_rewards = []
         # NOTE: episode_length could be less (task completed) or equal to max_episode_length (task failed)
@@ -365,7 +366,7 @@ class AutoPark_Env(gym.Env):
         # and change the state of our robot and the different parameters accordingly
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         # action = select_valid_action(robot_state)
-        action, log_prob = self.act(actor_net, robot_state)
+        action, log_prob, valid_action = self.act(actor_net, robot_state)
         self.actions.append(action)
         self.log_probs.append(log_prob)
         # robot_state transition
@@ -377,7 +378,7 @@ class AutoPark_Env(gym.Env):
         # robot receives reward after conducting an action
         reward = self.compute_reward(next_robot_coord, next_robot_dir, done)
 
-        return robot_state, reward, done
+        return robot_state, reward, done, valid_action
 
     def run_episode(self,actor_net , t):           # add t to record the number of timesteps run so far in this batch
         done = False
@@ -388,10 +389,11 @@ class AutoPark_Env(gym.Env):
             # increment timesteps run this batch so far
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
-            robot_state, reward, done = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
+            robot_state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
 
+            self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
             self.robot_states.append(robot_state)   # save the state for each move
             self.rewards.append(reward)             # save the reward for each move
 
@@ -463,11 +465,16 @@ class AutoPark_Env(gym.Env):
         # Query the actor network for a mean action
         action_distribution = actor_net(robot_state)
 
+        valid_action= []
+
         # We will firstly set Probability of invalid action to zero
         for i in len(action_distribution):
             action_index = [i // 9, i % 9]
             if robot_state.moveVidility(action_index) !=0:
                 action_distribution[i] = 0
+                valid_action.append(0)
+            else:
+                valid_action.append(1)
 
             # re-normalize the distribution
             total_probability = sum(action_distribution)
@@ -480,7 +487,7 @@ class AutoPark_Env(gym.Env):
             action_index = [selected_index // 9, selected_index % 9]
             log_prob = action_distribution.log_prob(selected_index)
 
-            return action_index, log_prob
+            return action_index, log_prob, valid_action
 
     # Plot the environment for every step
     def plot_env(self, step):

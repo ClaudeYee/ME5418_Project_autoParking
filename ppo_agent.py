@@ -39,6 +39,8 @@ class Agent():
         self.batch_states = []
         self.batch_actions = []
         self.batch_log_probs = []
+        self.batch_valid_actions = []
+
         self.batch_rewards = []
         self.batch_accumulated_rewards = []         # accumulated_reward refers to reward-to-go in the blog
         self.episode_lengths = []
@@ -66,8 +68,11 @@ class Agent():
                 self.batch_states.append(env.robot_states)
                 self.batch_actions.append(env.actions)
                 self.batch_log_probs.append(env.log_probs)
+                self.batch_valid_actions.append(env.valid_actions)
                 self.batch_rewards.append(env.rewards)
                 self.episode_lengths.append(env.episode_length)
+
+
                 print(self.episode_lengths)
 
                 # Calculate advantage at k-th iteration
@@ -80,6 +85,7 @@ class Agent():
             batch_actions = torch.tensor(self.batch_actions, dtype=torch.float)
             batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float)
             batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards)
+            batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.floaty)
 
 
 
@@ -90,10 +96,8 @@ class Agent():
             for _ in range(self.n_updates_per_iteration):  # ALG STEP 6 & 7
                 # Calculate V_phi and pi_theta(a_t | s_t)
                 # v_value = self.evaluate(batch_accumulated_rewards)
-                # TODO: a function to calculate log_probs is needed
-                curr_log_probs = self.get_log_probs(batch_accumulated_rewards)
 
-                v_value = self.evaluate(self.batch_states)
+                v_value, curr_log_probs= self.evaluate(self.batch_states)
                 a_value = batch_accumulated_rewards - v_value.detach()
                 a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)
                 # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
@@ -159,45 +163,10 @@ class Agent():
     def evaluate(self, batch_states):
         # compute V value
         v_value = self.critic_net(batch_states)
+        action_distribution = self.actor_net(batch_states)
+        curr_log_probs =
         # compute log probability of batch_actions using the most recent actor_net
-        return v_value
-
-    def act(self, state):
-        # Queries an action from the actor network, should be called from rollout.
-        # input is the state at the current timestep
-        # Return the probability of the selected action in the distribution
-
-        # Query the actor network for a mean action
-        action_distribution = self.actor_net(state)
-
-        # We will firstly set Probability of invalid action to zero
-        for i in len(action_distribution):
-            action_index = [i // 9, i % 9]
-            if state.moveVidility(action_index) !=0:
-                prob = 0
-
-            # re-normalize the distribution
-            total_probability = sum(action_distribution)
-            normalized_probabilities = [p / total_probability for p in action_distribution]
-            action_distribution = normalized_probabilities
-
-            # get an action from the distribution
-            cumulative_probability = 0
-            selected_index = 0
-
-            # generate a random number to select a action
-            random_number = random.random()
-
-            for i, prob in enumerate(action_distribution):
-                cumulative_probability += prob
-                if random_number < cumulative_probability:
-                    selected_index = i
-                    break
-
-            action_index = [selected_index // 9, selected_index % 9]
-            prob = action_distribution(selected_index)
-
-        return action_index, prob
+        return v_value, curr_log_probs
 
 
 
