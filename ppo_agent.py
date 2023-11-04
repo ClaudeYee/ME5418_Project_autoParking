@@ -97,7 +97,7 @@ class Agent():
                 # Calculate V_phi and pi_theta(a_t | s_t)
                 # v_value = self.evaluate(batch_accumulated_rewards)
 
-                v_value, curr_log_probs= self.evaluate(self.batch_states)
+                v_value, curr_log_probs= self.evaluate(self.batch_states, batch_valid_actions)
                 a_value = batch_accumulated_rewards - v_value.detach()
                 a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)
                 # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
@@ -160,11 +160,14 @@ class Agent():
         batch_accumulated_rewards = torch.tensor(batch_accumulated_rewards, dtype=torch.float)
         return batch_accumulated_rewards
 
-    def evaluate(self, batch_states):
+    def evaluate(self, batch_states, batch_valid_actions):
         # compute V value
         v_value = self.critic_net(batch_states)
         action_distribution = self.actor_net(batch_states)
-        curr_log_probs =
+        valid_action_distribution = action_distribution * batch_valid_actions   # product by elements
+        normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
+
+        curr_log_probs = normalized_distribution.log()
         # compute log probability of batch_actions using the most recent actor_net
         return v_value, curr_log_probs
 
