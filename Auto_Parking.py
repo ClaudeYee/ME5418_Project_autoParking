@@ -17,6 +17,8 @@ from parameter import *
 import torch
 from torch.distributions import Categorical
 
+from ppo_agent import
+
 # from test2 import ActorNet, CriticNet
 
 '''
@@ -380,13 +382,15 @@ class AutoPark_Env(gym.Env):
 
         return robot_state, reward, done, valid_action
 
-    def run_episode(self,actor_net , t):           # add t to record the number of timesteps run so far in this batch
+    def run_episode(self, actor_net, t):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
         self.robot_states.append(robot_state)  # save the initial robot state
 
         for i in range(self.max_episode_length):
             # increment timesteps run this batch so far
+            global t
+            t += 1
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
             robot_state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
@@ -401,7 +405,6 @@ class AutoPark_Env(gym.Env):
 
             if done:
                 # self.save_accumulated_reward(self.accumulated_reward)
-                self.episode_length = i + 1         # record how many timesteps the robot has moved in this episode
                 print("The robot has successfully parked in the parking lot, task succeeded!")
                 break
         if not done:
@@ -465,12 +468,12 @@ class AutoPark_Env(gym.Env):
         # Query the actor network for a mean action
         action_distribution = actor_net(robot_state)
 
-        valid_action= []
+        valid_action = []
 
         # We will firstly set Probability of invalid action to zero
         for i in len(action_distribution):
             action_index = [i // 9, i % 9]
-            if robot_state.moveVidility(action_index) !=0:
+            if robot_state.moveVidility(action_index) != 0:
                 action_distribution[i] = 0
                 valid_action.append(0)
             else:
