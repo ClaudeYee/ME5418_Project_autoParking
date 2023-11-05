@@ -17,16 +17,30 @@ def train(env, actor_model, critic_model):
         agent.critic_net.load_state_dict(torch.load(critic_model))
         print("Model loaded successfully.", flush=True)
     elif actor_model != " " or critic_model != " ":
-        print("Errors! Training doesn't start")
+        print("Error! Training doesn't start")
         sys.exit(0)
     else:
         print(f"Training from the beginning.", flush=True)
 
-    agent.learn(2000)
+    agent.learn(total_timesteps=2000)
 
 
-def test():
-    pass
+def test(env, actor_model):
+    print(f"Testing {actor_model}", flush=True)
+    if actor_model == '':
+        print('Error! Model file not specified', flush=True)
+        sys.exit(0)
+
+    # TODO: the dimensions here might be changed to adjust the dimension defined in our neural network
+    state_dim = env.world.shape  # [3, 60, 60]
+    action_dim = env.actions.shape  # [1, 81]
+
+    policy = ActorNet(in_channel=IN_CHANNEL, lstm_layers=LSTM_LAYERS,
+                      output_dim=OUTPUT_DIM, action_dim=action_dim)
+    policy.load_state_dict(torch.load(actor_model))
+
+    # TODO: need to define a function to evaluate the policy or import it form another file/part of our code
+    # eval_policy(policy, env, render=True)
 
 
 def main():
@@ -35,3 +49,6 @@ def main():
         train(env)
     else:
         test()
+
+if __name__ == '__main__':
+    main()

@@ -9,6 +9,10 @@ MAX_EPISODE_LENGTH = 200        # The maximum steps that an episode can hold
 TIMESTEPS_BATCH = 480
 UPDATES_PER_ITERATION = 5       # how many times pi in numerator will update
 
+IN_CHANNEL = 3
+LSTM_LAYERS = 2
+OUTPUT_DIM = 512
+
 BATCH_SIZE = 128
 GAMMA = 1
 
