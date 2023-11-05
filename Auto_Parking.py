@@ -17,8 +17,6 @@ from parameter import *
 import torch
 from torch.distributions import Categorical
 
-from ppo_agent import
-
 # from test2 import ActorNet, CriticNet
 
 '''
@@ -389,7 +387,6 @@ class AutoPark_Env(gym.Env):
 
         for i in range(self.max_episode_length):
             # increment timesteps run this batch so far
-            global t
             t += 1
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
@@ -409,6 +406,8 @@ class AutoPark_Env(gym.Env):
                 break
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
+
+        return t
 
     # TODO: Let's define it later, because for now, the design of reward mechanism is not so important for env testing.
     # TODO: NOTE: This part is extremely important for training the agent!!! It might be revised for many times.

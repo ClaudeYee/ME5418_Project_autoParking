@@ -63,7 +63,7 @@ class Agent():
                 # The following process is done in one batch
                 # rewards in this episode
                 # TODO: Keep in mind that t cannot get changed through the env.function, hence, must modify
-                self.env.run_episode()
+                t = self.env.run_episode(self.actor_net, t)
 
                 self.batch_states.append(env.robot_states)
                 self.batch_actions.append(env.actions)

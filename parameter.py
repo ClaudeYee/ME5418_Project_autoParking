@@ -18,3 +18,4 @@ CLIP = 0.2
 IMG_SAVE_PATH = "test_pictures"
 
 USE_GPU = False
+TRAIN = False
