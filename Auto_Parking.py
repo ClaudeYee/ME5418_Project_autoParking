@@ -38,9 +38,9 @@ ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2
 # actionDict={v:k for k,v in dirDict.items()}
 
 class State():
-    def __init__(self, world0, pos, carSize=ROBOT_SIZE):
+    def __init__(self, world_obs_pklot, pos, carSize=ROBOT_SIZE):
         # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
-        self.state = world0.copy()
+        self.state = world_obs_pklot.copy()
         self.current_pos = pos.copy()
         self.next_pos = np.zeros(WORLD_SIZE)
         self.robot_current_state = self.getState()  # TODO: This might not be needed later.
@@ -118,7 +118,7 @@ class State():
                     or y > self.state.shape[1] - 1 or y < 0):  # out of bounds
                 return -1
 
-            if self.state[x, y] == (1):  # collide with static obstacle
+            if self.state[x, y] == (-1):  # collide with static obstacle
                 return -2
 
         # none of the above
@@ -321,7 +321,7 @@ class AutoPark_Env(gym.Env):
         # else:
         self.world_obs = self.init_obstacles()  # the obstacle channel of the world
         self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
-        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs)      # NOTE: self.world_robot is robot_hitbox
+        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs, self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
     def init_obstacles(self):
@@ -333,23 +333,23 @@ class AutoPark_Env(gym.Env):
         return world_pklots, self.pklot1_coord, self.pklot2_coord
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
-    def init_robot(self, world):
+    def init_robot(self, world_obs, world_pklot):
         # pos_x and pos_y refer to the center point coordinate of the robot
-        coord_x, coord_y = np.random.randint(3, world.shape[0]-3), np.random.randint(3, world.shape[1]-3)
+        coord_x, coord_y = np.random.randint(3, world_obs.shape[0] - 3), np.random.randint(3, world_obs.shape[1] - 3)
         # randomly generate a heading of the robot
         dir = random.randint(0, 7)
         init_robot_pos_coord = [coord_x, coord_y]
         init_robot_dir = dir
-        init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
+        init_robot_pos = -1 * np.ones([world_obs.shape[0], world_obs.shape[1]])
         init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
 
-        self.init_robot_state = State(world, init_robot_pos)
+        self.init_robot_state = State(world_pklot-world_obs, init_robot_pos)
         init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
         init_robot_hitbox = self.init_robot_state.next_hitbox
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
-        if world[coord_x, coord_y] == 0 and check_available(init_robot_hitbox, world):
+        if world_obs[coord_x, coord_y] == 0 and check_available(init_robot_hitbox, world_obs):
             # init_robot_pos_coord = [pos_x, pos_y]
             # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
             # init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
@@ -358,7 +358,7 @@ class AutoPark_Env(gym.Env):
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
             print("not available")
-            init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world)
+            init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world_obs)
             return init_robot_pos, init_robot_dir, init_robot_hitbox
 
     def step(self, actor_net, robot_state, done=False):
