@@ -307,7 +307,7 @@ class AutoPark_Env(gym.Env):
         self.rewards = []        # Note: rewards here refers to the rewards in one episode, shape: [this episode length]
         # self.accumulated_rewards = []
         # NOTE: episode_length could be less (task completed) or equal to max_episode_length (task failed)
-        self.episode_length = []
+        self.episode_length = 0
         self.max_episode_length = MAX_EPISODE_LENGTH
 
         self.done = False
@@ -465,29 +465,41 @@ class AutoPark_Env(gym.Env):
         # Return the probability of the selected action in the distribution
 
         # Query the actor network for a mean action
-        action_distribution = actor_net(robot_state)
+        # state_obs_lot = np.array(robot_state.state)
+        # state_next_pos = np.array(robot_state.next_pos)
+        # state_hitbox = np.array(robot_state.next_hitbox)
 
+        # state = np.dstack((state_obs_lot, state_next_pos, state_hitbox))
+        state = np.array([robot_state.state, robot_state.next_pos, robot_state.next_hitbox])
+        state = torch.tensor(state, dtype=torch.float).unsqueeze(dim=0)
+        # torch.unsqueeze(state, dim=)
+        action_distribution, _ = actor_net(state)
+        print("action_distribution: ", action_distribution)
         valid_action = []
 
         # We will firstly set Probability of invalid action to zero
-        for i in len(action_distribution):
+        for i in range(len(action_distribution)):
             action_index = [i // 9, i % 9]
-            if robot_state.moveVidility(action_index) != 0:
+            if robot_state.moveValidity(action_index) != 0:
                 action_distribution[i] = 0
                 valid_action.append(0)
             else:
                 valid_action.append(1)
 
             # re-normalize the distribution
-            total_probability = sum(action_distribution)
-            normalized_probabilities = [p / total_probability for p in action_distribution]
+            total_probability = action_distribution.sum()
+            print("total_probability: ", total_probability, end=" ")
+            test_state = robot_state.state + robot_state.next_hitbox
+            normalized_probabilities = action_distribution/total_probability
 
-            action_distribution = Categorical(torch.tensor(normalized_probabilities))
+            action_distribution = Categorical(normalized_probabilities)
 
             selected_index = action_distribution.sample()
-
-            action_index = [selected_index // 9, selected_index % 9]
             log_prob = action_distribution.log_prob(selected_index)
+
+            action_index = [selected_index.item() // 9, selected_index.item() % 9]
+            # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
+
 
             return action_index, log_prob, valid_action
 

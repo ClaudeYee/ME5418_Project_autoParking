@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchviz import make_dot
+# from torchviz import make_dot
 import numpy as np
 
 
@@ -42,9 +42,8 @@ class CNNBlock(nn.Module):
 
 
 class ActorNet(nn.Module):
-    def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=18):
+    def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=81):
         super(ActorNet, self).__init__()
-        in_channel =
         # CNNBlock + LSTM
         self.cnn = CNNBlock(in_channel, output_dim)
         self.lstm = nn.LSTM(input_size=output_dim, hidden_size=output_dim, num_layers=lstm_layers, batch_first=True)
@@ -52,6 +51,7 @@ class ActorNet(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
+        print("x: ", x.shape)
         embedding_output = self.cnn(x)
         output, (h_n, c_n) = self.lstm(embedding_output)
         # generate policy distribution on actions
@@ -126,7 +126,6 @@ if __name__ == "__main__":
 
     expected_actor_shape = (batch_size, num_actions)
     expected_critic_shape = (batch_size, 1)
-
     actor_target = torch.randn(1, 81)
     print("actor_target_shape: ", actor_target.shape)
     # critic_target = torch.randn(1, 1)
@@ -137,13 +136,15 @@ if __name__ == "__main__":
     tester = FullModelTester()
 
     sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True)
+    print("input_shape", sample_input.shape)
 
     actor_outcome, critic_outcome = tester.test_with_input(sample_input)
     print("actor_outcome_shape: ", actor_outcome.shape)
+    print("actor_outcome_type: ", actor_outcome.dtype)
 
     loss_actor = loss_function_actor(actor_outcome, actor_target)
     print("loss_actor: ", loss_actor)
-    make_dot(loss_actor.mean())
+    # make_dot(loss_actor.mean())
     loss_actor.requires_grad = True
     # loss_critic = loss_function_critic(critic_outcome, critic_target)
 

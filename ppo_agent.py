@@ -20,7 +20,7 @@ class Agent():
         self.env = env
         # TODO: the dimensions here might be changed to adjust the dimension defined in our neural network
         self.state_dim = env.world.shape      # [3, 60, 60]
-        self.action_dim = env.actions.shape     # [1, 81]   Note that: might be directly assigned to be 18 rather than call the actions property in env class
+        self.action_dim = np.array(env.actions).shape     # [1, 81]   Note that: might be directly assigned to be 18 rather than call the actions property in env class
 
         # initialize ActorNet and CriticNet
         self.actor_net = ActorNet()
@@ -171,4 +171,6 @@ class Agent():
 
 if __name__ == "__main__":
     env = AutoPark_Env()
+    env.init_world()
     agent = Agent(env)
+    agent.learn(600)
