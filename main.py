@@ -7,10 +7,8 @@ import sys
 from parameter import *
 
 
-def train(env, actor_model, critic_model):
+def train(agent, actor_model, critic_model):
     print("Training starts.")
-    agent = Agent(env)
-
     if actor_model != " " and critic_model != " ":
         print(f"Loading in {actor_model} and {critic_model} ...", flush=True)
         agent.actor_net.load_state_dict(torch.load(actor_model))
@@ -25,7 +23,7 @@ def train(env, actor_model, critic_model):
     agent.learn(total_timesteps=2000)
 
 
-def test(env, actor_model):
+def test(agent, actor_model):
     print(f"Testing {actor_model}", flush=True)
     if actor_model == '':
         print('Error! Model file not specified', flush=True)
@@ -44,7 +42,11 @@ def test(env, actor_model):
 
 
 def main():
+    device = torch.device("cuda") if USE_GPU else torch.device("cpu")
+
     env = AutoPark_Env()
+    agent = Agent()
+
     if TRAIN:
         train(env)
     else:

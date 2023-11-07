@@ -13,9 +13,11 @@ from model import ActorNet, CriticNet
 from Auto_Parking import AutoPark_Env
 from parameter import *
 
+
 # TODO: Remember to modify the reward function to satisfy our target!
 class Agent():
-    def __init__(self, env):
+    def __init__(self, env, device):
+        self.device = device
         # Get the state from the defined env
         self.env = env
         # TODO: the dimensions here might be changed to adjust the dimension defined in our neural network
@@ -23,8 +25,8 @@ class Agent():
         self.action_dim = np.array(env.actions).shape     # [1, 81]   Note that: might be directly assigned to be 18 rather than call the actions property in env class
 
         # initialize ActorNet and CriticNet
-        self.actor_net = ActorNet()
-        self.critic_net = CriticNet()
+        self.actor_net = ActorNet().to(self.device)
+        self.critic_net = CriticNet().to(self.device)
         self.actor_optimizer = optim.Adam(self.actor_net.parameters(), lr=LR)
         self.critic_optimizer = optim.Adam(self.critic_net.parameters(), lr=LR)
 
@@ -57,12 +59,10 @@ class Agent():
         k = 0
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
-            # TODO: how to change the value of t in run_episode ???
             t = 0
             while t < self.timesteps_batch:
                 # The following process is done in one batch
                 # rewards in this episode
-                # TODO: Keep in mind that t cannot get changed through the env.function, hence, must modify
                 t = self.env.run_episode(self.actor_net, t)
 
                 self.batch_states.append(env.robot_states)
@@ -78,13 +78,13 @@ class Agent():
                 k += np.sum(self.batch_episode_lengths)
 
             # variables with batch prefix but no self are all in tensor form
-            batch_states = torch.tensor(self.batch_states, dtype=torch.float)
-            batch_actions = torch.tensor(self.batch_actions, dtype=torch.float)
-            batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float)
-            batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float)
-            batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards)
+            batch_states = torch.tensor(self.batch_states, dtype=torch.float).to(self.device)
+            batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
+            batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float).to(self.device)
+            batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float).to(self.device)
+            batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards).to(self.device)
             # valid_actions may not need to be converted into tensor form. For now, just keep it.
-            batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float)
+            batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
 
             # compute advantage function value
             # V_phi_k
@@ -118,12 +118,16 @@ class Agent():
                 # Calculate gradients and perform backward propagation for actor network
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward(retain_graph=True)
+                actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.5, norm_type=2)
                 self.actor_optimizer.step()
                 # Calculate gradients and perform backward propagation for critic network
                 self.critic_optimizer.zero_grad()
                 critic_loss.backward()
+                critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
                 self.critic_optimizer.step()
 
+            if
+            batch_rewards.mean().item()
 
     # def rollout(self):
     #     batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
@@ -143,6 +147,7 @@ class Agent():
     #             break
     #
     #     return batch_data
+
 
     # compute accumulated rewards
     def compute_accumulated_rewards(self, batch_rewards):
@@ -168,9 +173,14 @@ class Agent():
         curr_log_probs = normalized_distribution.log()
         return v_value, curr_log_probs
 
+    def save(self, checkpoint_path):
+        print("Model saving...")
+        checkpoint = {"policy_model": self.actor_net.state_dict(), "v_value_model": self.critic_net.state_dict(), "policy_optimizer": }
+        torch.save(checkpoint, checkpoint_path)
 
 if __name__ == "__main__":
     env = AutoPark_Env()
     env.init_world()
-    agent = Agent(env)
-    agent.learn(600)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    agent = Agent(env, device=device)
+    agent.learn(1000)

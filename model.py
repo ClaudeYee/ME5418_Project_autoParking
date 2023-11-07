@@ -5,7 +5,6 @@ import torch.nn.functional as F
 import numpy as np
 
 
-
 class CNNBlock(nn.Module):
     def __init__(self, in_channel=3, output_dim=512):
         super(CNNBlock, self).__init__()
