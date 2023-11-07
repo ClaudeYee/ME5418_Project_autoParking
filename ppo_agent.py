@@ -31,23 +31,30 @@ class Agent():
         self.critic_optimizer = optim.Adam(self.critic_net.parameters(), lr=LR)
 
         # ----------------------------------------- rollout data shapes ---------------------------------------------- #
-        # batch_states: [number of timesteps each batch, states dimensions]
-        # batch_actions: [numbwe of timesteps each batch, action dimensions]
-        # batch_log_prob(log probability): [number of timesteps each batch]
-        # batch_rewards: [number of episodes, number of timesteps per episode]
-        # batch_accumulated_rewards: [number of timesteps per batch]
-        # batch_episode_lengths: [number of episodes]
-        # ------------------------------------------------------------------------------------------------------------ #
+        # rollout_states: [number of timesteps each rollout, states dimensions]
+        # rollout_actions: [numbwe of timesteps each rollout, action dimensions]
+        # rollout_log_prob(log probability): [number of timesteps each rollout]
+        # rollout_rewards: [number of episodes, number of timesteps per episode]
+        # rollout_accumulated_rewards: [number of timesteps per batch]
+        # rollout_episode_lengths: [number of episodes]
+        # ------------------------------------------ rollout data ---------------------------------------------------- #
+        # rollout_states = []
+        # rollout_actions = []
+        # rollout_log_probs = []
+        # rollout_valid_actions = []
+        # rollout_rewards = []
+        # rollout_episode_lengths = []
+        self.rollout_data = [[] for _ in range(6)]
+        # ----------------------------------------- batch data -------------------------------------------------------#
         self.batch_states = []
         self.batch_actions = []
         self.batch_log_probs = []
         self.batch_valid_actions = []
-
         self.batch_rewards = []
         self.batch_accumulated_rewards = []         # accumulated_reward refers to reward-to-go in the blog
         self.batch_episode_lengths = []
 
-        self.timesteps_batch = TIMESTEPS_BATCH
+        self.timesteps_rollout = TIMESTEPS_ROLLOUT
         self.updates_per_iteration = UPDATES_PER_ITERATION      # used to determine how many times pi in numerator
 
         self.clip = CLIP
@@ -60,18 +67,28 @@ class Agent():
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
-            while t < self.timesteps_batch:
-                # The following process is done in one batch
+            while t < self.timesteps_rollout:
+                # The following process is done in one buffer
                 # rewards in this episode
                 t = self.env.run_episode(self.actor_net, t)
 
-                self.batch_states.append(env.robot_states)
-                self.batch_actions.append(env.actions)
-                self.batch_log_probs.append(env.log_probs)
-                self.batch_valid_actions.append(env.valid_actions)
-                self.batch_rewards.append(env.rewards)
-                self.batch_episode_lengths.append(env.episode_length + 1)
-                print(self.batch_episode_lengths)
+                # self.batch_states.append(env.robot_states)
+                # self.batch_actions.append(env.actions)
+                # self.batch_log_probs.append(env.log_probs)
+                # self.batch_valid_actions.append(env.valid_actions)
+                # self.batch_rewards.append(env.rewards)
+                # self.batch_episode_lengths.append(env.episode_length + 1)
+                # print(self.batch_episode_lengths)
+                self.rollout(env.robot_states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length + 1)
+
+
+                # buffer_states.append(env.robot_states)
+                # buffer_actions.append(env.actions)
+                # buffer_log_probs.append(env.log_probs)
+                # buffer_valid_actions.append(env.valid_actions)
+                # buffer_rewards.append(env.rewards)
+                # buffer_episode_lengths.append(env.episode_length + 1)
+
                 # detach is used to create a independent copy of a tensor
 
                 # How many timesteps it runs in this batch
@@ -79,7 +96,7 @@ class Agent():
 
             # variables with batch prefix but no self are all in tensor form
             batch_states = torch.tensor(self.batch_states, dtype=torch.float).to(self.device)
-            batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
+            # batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
             batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float).to(self.device)
             batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float).to(self.device)
             batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards).to(self.device)
@@ -129,24 +146,6 @@ class Agent():
             if
             batch_rewards.mean().item()
 
-    # def rollout(self):
-    #     batch_data = {'states': [], 'actions': [], 'rewards': [], 'action_probs': [], 'dones': []}
-    #     state = self.env.reset()
-    #     for _ in range(self.timesteps_batch):
-    #         action, action_prob = self.actor_net(state)
-    #         next_state, reward, done = self.env.step(action)
-    #
-    #         batch_data['states'].append(state)
-    #         batch_data['actions'].append(action)
-    #         batch_data['rewards'].append(reward)
-    #         batch_data['action_probs'].append(action_prob)
-    #         batch_data['dones'].append(done)
-    #
-    #         state = next_state
-    #         if done:
-    #             break
-    #
-    #     return batch_data
 
 
     # compute accumulated rewards
@@ -177,6 +176,16 @@ class Agent():
         print("Model saving...")
         checkpoint = {"policy_model": self.actor_net.state_dict(), "v_value_model": self.critic_net.state_dict(), "policy_optimizer": }
         torch.save(checkpoint, checkpoint_path)
+
+
+    def rollout(self, states, actions, log_probs, valid_actions, rewards, episode_lengths):
+        self.rollout_data[0].append(states)
+        self.rollout_data[1].append(actions)
+        self.rollout_data[2].append(log_probs)
+        self.rollout_data[3].append(valid_actions)
+        self.rollout_data[4].append(rewards)
+        self.rollout_data[5].append(episode_lengths)
+
 
 if __name__ == "__main__":
     env = AutoPark_Env()
