@@ -46,6 +46,7 @@ class Agent():
         # rollout_episode_lengths = []
         self.rollout_data = [[] for _ in range(6)]
         # ----------------------------------------- batch data -------------------------------------------------------#
+        self.batch_size = BATCH_SIZE
         self.batch_states = []
         self.batch_actions = []
         self.batch_log_probs = []
@@ -80,8 +81,6 @@ class Agent():
                 # self.batch_episode_lengths.append(env.episode_length + 1)
                 # print(self.batch_episode_lengths)
                 self.rollout(env.robot_states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length + 1)
-
-
                 # buffer_states.append(env.robot_states)
                 # buffer_actions.append(env.actions)
                 # buffer_log_probs.append(env.log_probs)
@@ -92,59 +91,78 @@ class Agent():
                 # detach is used to create a independent copy of a tensor
 
                 # How many timesteps it runs in this batch
-                k += np.sum(self.batch_episode_lengths)
+                k += np.sum(self.rollout_data[5])
+            # rollout prefix but no self are all in tensor form
+            rollout_data = torch.tensor(self.rollout_data, dtype=torch.float).to(self.device)   # [states, actions, log_probs, valid_actions, rewards, episode_lengths]
 
-            # variables with batch prefix but no self are all in tensor form
-            batch_states = torch.tensor(self.batch_states, dtype=torch.float).to(self.device)
-            # batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
-            batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float).to(self.device)
-            batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float).to(self.device)
-            batch_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards).to(self.device)
-            # valid_actions may not need to be converted into tensor form. For now, just keep it.
-            batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
+            # batch_states = torch.tensor(self.batch_states, dtype=torch.float).to(self.device)
+            # # batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
+            # batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float).to(self.device)
+            # batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float).to(self.device)
+            rollout_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards).to(self.device)
+            # # valid_actions may not need to be converted into tensor form. For now, just keep it.
+            # batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
 
             # compute advantage function value
-            # V_phi_k
-            v_value, _ = self.evaluate(batch_states, batch_valid_actions)
+            rollout_states = rollout_data[0]
+            print("rollout_states: ", rollout_states.shape)
+            rollout_valid_actions = rollout_data[3]
 
-            a_value = batch_accumulated_rewards - v_value.detach()
+            # V_phi_k
+            v_value, _ = self.evaluate(rollout_states, rollout_valid_actions)
+
+            a_value = rollout_accumulated_rewards.detach() - v_value.detach()
             # advantage normalization
             a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
 
+            rollout_step = rollout_states.size(0)
+            indices = np.array(rollout_step)
+            np.random.shuffle(indices)
             # ----- This is the loop where we update our actor_net and critic_net for some n epochs ----- #
             for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
+
+                for start in range(0, rollout_step, self.batch_size):
                 # Calculate V_phi and pi_theta(a_t | s_t)
-                v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
+                    end = start + self.batch_size
+                    index = indices[start:end]
+                    batch_states = rollout_data[0][index]
+                    batch_actions = rollout_data[1][index]
+                    batch_log_probs = rollout_data[2][index]
+                    batch_valid_actions = rollout_data[3][index]
+                    batch_rewards = rollout_data[4][index]
+                    batch_accumulated_rewards = rollout_accumulated_rewards[index]
+                    batch_a_value = a_value[index]
+                    v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
 
-                # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
-                # TL;DR makes gradient ascent easier behind the scenes.
-                ratios = torch.exp(curr_log_probs - batch_log_probs)
+                    # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
+                    # TL;DR makes gradient ascent easier behind the scenes.
+                    ratios = torch.exp(curr_log_probs - batch_log_probs)
 
-                # Calculate surrogate losses.
-                # a_value is the advantage at k-th iteration
-                surr1 = ratios * a_value
-                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * a_value
-                # Calculate actor and critic losses.
-                # NOTE: we take the negative min of the surrogate losses because we're trying to maximize
-                # the performance function, but Adam minimizes the loss. So minimizing the negative
-                # performance function maximizes it.
-                actor_loss = (-torch.min(surr1, surr2)).mean()
-                mseloss = nn.MSELoss()
-                critic_loss = mseloss(v_value, batch_accumulated_rewards)
+                    # Calculate surrogate losses.
+                    # a_value is the advantage at k-th iteration
+                    surr1 = ratios * batch_a_value
+                    surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * a_value
+                    # Calculate actor and critic losses.
+                    # NOTE: we take the negative min of the surrogate losses because we're trying to maximize
+                    # the performance function, but Adam minimizes the loss. So minimizing the negative
+                    # performance function maximizes it.
+                    actor_loss = (-torch.min(surr1, surr2)).mean()
+                    mseloss = nn.MSELoss()
+                    critic_loss = mseloss(v_value, batch_accumulated_rewards)
 
-                # Calculate gradients and perform backward propagation for actor network
-                self.actor_optimizer.zero_grad()
-                actor_loss.backward(retain_graph=True)
-                actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.5, norm_type=2)
-                self.actor_optimizer.step()
-                # Calculate gradients and perform backward propagation for critic network
-                self.critic_optimizer.zero_grad()
-                critic_loss.backward()
-                critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
-                self.critic_optimizer.step()
+                    # Calculate gradients and perform backward propagation for actor network
+                    self.actor_optimizer.zero_grad()
+                    actor_loss.backward(retain_graph=True)
+                    actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.5, norm_type=2)
+                    self.actor_optimizer.step()
+                    # Calculate gradients and perform backward propagation for critic network
+                    self.critic_optimizer.zero_grad()
+                    critic_loss.backward()
+                    critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
+                    self.critic_optimizer.step()
 
-            if
-            batch_rewards.mean().item()
+            # if
+            # batch_rewards.mean().item()
 
 
 
