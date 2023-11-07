@@ -48,7 +48,6 @@ class State():
         self.robot_size = carSize
         self.shape0, self.shape1 = self.getShape(carSize)  # TODO: here do some changes
         self.next_hitbox_index = self.getHitBox_index(self.robot_current_state[0], self.robot_current_state[1])
-        print(self.next_hitbox_index)
         self.next_hitbox = self.renderHitBox()
         self.current_hitbox_index = self.next_hitbox_index.copy()
         self.current_hitbox = self.next_hitbox.copy()
@@ -275,6 +274,7 @@ class State():
 
 class AutoPark_Env(gym.Env):
     def __init__(self, world0=None, blank_world=False):  # blank_world: there is no robot and any parking lots
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.world_size = WORLD_SIZE
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
@@ -301,6 +301,8 @@ class AutoPark_Env(gym.Env):
 
         # save the robot state, the action, and the reward at each timestep for this episode
         self.robot_states = []
+        # self.states = torch.tensor([], dtype=torch.float).to(self.device)
+        self.states = []
         self.actions = []
         self.log_probs = []
         self.valid_actions = []
@@ -366,7 +368,7 @@ class AutoPark_Env(gym.Env):
         # and change the state of our robot and the different parameters accordingly
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         # action = select_valid_action(robot_state)
-        action, log_prob, valid_action = self.act(actor_net, robot_state)
+        state, action, log_prob, valid_action = self.act(actor_net, robot_state)
         self.actions.append(action)
         self.log_probs.append(log_prob)
         # robot_state transition
@@ -378,21 +380,32 @@ class AutoPark_Env(gym.Env):
         # robot receives reward after conducting an action
         reward = self.compute_reward(next_robot_coord, next_robot_dir, done)
 
-        return robot_state, reward, done, valid_action
+        # robot_state is a class, while state is a 3x60x60 matrix
+        return robot_state, state, reward, done, valid_action
 
     def run_episode(self, actor_net, t):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
         self.robot_states.append(robot_state)  # save the initial robot state
 
+        self.states = []
+        self.actions = []
+        self.log_probs = []
+        self.valid_actions = []
+        self.rewards = []
+
         for i in range(self.max_episode_length):
             # increment timesteps run this batch so far
             t += 1
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
-            robot_state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
+            robot_state, state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
+
+            # self.states = torch.cat((self.states, state), dim=0).to(self.device)
+            state = state.squeeze(0)
+            self.states.append(state.cpu().numpy())
 
             self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
             self.robot_states.append(robot_state)   # save the state for each move
@@ -406,6 +419,7 @@ class AutoPark_Env(gym.Env):
                 break
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
+        # print("self.states", self.states.shape)
 
         return t
 
@@ -432,6 +446,7 @@ class AutoPark_Env(gym.Env):
         return reward
 
     def reset(self):
+        del self.
         self.init_world()
 
     def save_robot_state(self, robot_state):
@@ -471,37 +486,40 @@ class AutoPark_Env(gym.Env):
 
         # state = np.dstack((state_obs_lot, state_next_pos, state_hitbox))
         state = np.array([robot_state.state, robot_state.next_pos, robot_state.next_hitbox])
-        state = torch.tensor(state, dtype=torch.float).unsqueeze(dim=0)
+
+        state = torch.tensor(state, dtype=torch.float).unsqueeze(dim=0).detach().to(self.device)
         # torch.unsqueeze(state, dim=)
         action_distribution, _ = actor_net(state)
-        print("action_distribution: ", action_distribution)
+        # print("action_distribution: ", action_distribution)
         valid_action = []
+        #
+        # print("shape:", action_distribution.shape)
 
         # We will firstly set Probability of invalid action to zero
-        for i in range(len(action_distribution)):
+        for i in range(len(action_distribution[0])):
             action_index = [i // 9, i % 9]
             if robot_state.moveValidity(action_index) != 0:
-                action_distribution[i] = 0
+                action_distribution[0][i] = 0
                 valid_action.append(0)
             else:
                 valid_action.append(1)
 
             # re-normalize the distribution
-            total_probability = action_distribution.sum()
-            print("total_probability: ", total_probability, end=" ")
-            test_state = robot_state.state + robot_state.next_hitbox
-            normalized_probabilities = action_distribution/total_probability
+        total_probability = action_distribution.sum()
+        # print("total_probability: ", total_probability)
+        test_state = robot_state.state + robot_state.next_hitbox
+        normalized_probabilities = action_distribution/total_probability
 
-            action_distribution = Categorical(normalized_probabilities)
+        action_distribution = Categorical(normalized_probabilities)
 
-            selected_index = action_distribution.sample()
-            log_prob = action_distribution.log_prob(selected_index)
+        selected_index = action_distribution.sample()
+        log_prob = action_distribution.log_prob(selected_index)
 
-            action_index = [selected_index.item() // 9, selected_index.item() % 9]
-            # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
+        action_index = [selected_index.item() // 9, selected_index.item() % 9]
+        # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
 
 
-            return action_index, log_prob, valid_action
+        return state, action_index, log_prob, valid_action
 
     # Plot the environment for every step
     def plot_env(self, step):

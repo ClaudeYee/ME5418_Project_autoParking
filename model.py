@@ -50,7 +50,6 @@ class ActorNet(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        print("x: ", x.shape)
         embedding_output = self.cnn(x)
         output, (h_n, c_n) = self.lstm(embedding_output)
         # generate policy distribution on actions

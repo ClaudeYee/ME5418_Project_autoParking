@@ -20,6 +20,7 @@ class Agent():
         self.device = device
         # Get the state from the defined env
         self.env = env
+        self.env.init_world()
         # TODO: the dimensions here might be changed to adjust the dimension defined in our neural network
         self.state_dim = env.world.shape      # [3, 60, 60]
         self.action_dim = np.array(env.actions).shape     # [1, 81]   Note that: might be directly assigned to be 18 rather than call the actions property in env class
@@ -38,7 +39,7 @@ class Agent():
         # rollout_accumulated_rewards: [number of timesteps per batch]
         # rollout_episode_lengths: [number of episodes]
         # ------------------------------------------ rollout data ---------------------------------------------------- #
-        # rollout_states = []
+        # rollout_states = []   # should be a tensor
         # rollout_actions = []
         # rollout_log_probs = []
         # rollout_valid_actions = []
@@ -71,6 +72,7 @@ class Agent():
             while t < self.timesteps_rollout:
                 # The following process is done in one buffer
                 # rewards in this episode
+                print("actor_net: ", next(self.actor_net.parameters()).device)
                 t = self.env.run_episode(self.actor_net, t)
 
                 # self.batch_states.append(env.robot_states)
@@ -80,7 +82,8 @@ class Agent():
                 # self.batch_rewards.append(env.rewards)
                 # self.batch_episode_lengths.append(env.episode_length + 1)
                 # print(self.batch_episode_lengths)
-                self.rollout(env.robot_states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length + 1)
+                # print("env.states: ", env.states.shape)
+                self.rollout(env.states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length + 1)
                 # buffer_states.append(env.robot_states)
                 # buffer_actions.append(env.actions)
                 # buffer_log_probs.append(env.log_probs)
@@ -92,21 +95,31 @@ class Agent():
 
                 # How many timesteps it runs in this batch
                 k += np.sum(self.rollout_data[5])
-            # rollout prefix but no self are all in tensor form
-            rollout_data = torch.tensor(self.rollout_data, dtype=torch.float).to(self.device)   # [states, actions, log_probs, valid_actions, rewards, episode_lengths]
 
+            self.env.init_world()
+
+            print("self.env", self.env)
+
+            # rollout prefix but no self are all in tensor form
+            print("data has been collected into one rollout")
+            # rollout_data = np.array(self.rollout_data)
+            # rollout_data = torch.tensor(self.rollout_data, dtype=torch.float).to(self.device)   # [states, actions, log_probs, valid_actions, rewards, episode_lengths]
             # batch_states = torch.tensor(self.batch_states, dtype=torch.float).to(self.device)
             # # batch_actions = torch.tensor(self.batch_actions, dtype=torch.float).to(self.device)
             # batch_rewards = torch.tensor(self.batch_rewards, dtype=torch.float).to(self.device)
             # batch_log_probs = torch.tensor(self.batch_log_probs, dtype=torch.float).to(self.device)
-            rollout_accumulated_rewards = self.compute_accumulated_rewards(self.batch_rewards).to(self.device)
             # # valid_actions may not need to be converted into tensor form. For now, just keep it.
             # batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
 
             # compute advantage function value
-            rollout_states = rollout_data[0]
+            self.rollout_data[0] = np.array(self.rollout_data[0]).reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
+            rollout_states = torch.tensor(self.rollout_data[0], dtype=torch.float).to(self.device)
             print("rollout_states: ", rollout_states.shape)
-            rollout_valid_actions = rollout_data[3]
+            rollout_actions = torch.tensor(self.rollout_data[1], dtype=torch.float).to(self.device)
+            rollout_log_probs = torch.tensor(self.rollout_data[2], dtype=torch.float).to(self.device)
+            rollout_valid_actions = torch.tensor(self.rollout_data[3], dtype=torch.float).to(self.device)
+            rollout_rewards = torch.tensor(self.rollout_data[4], dtype=torch.float).to(self.device)
+            rollout_accumulated_rewards = self.compute_accumulated_rewards(rollout_rewards).to(self.device)
 
             # V_phi_k
             v_value, _ = self.evaluate(rollout_states, rollout_valid_actions)
@@ -122,14 +135,15 @@ class Agent():
             for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
 
                 for start in range(0, rollout_step, self.batch_size):
+
                 # Calculate V_phi and pi_theta(a_t | s_t)
                     end = start + self.batch_size
                     index = indices[start:end]
-                    batch_states = rollout_data[0][index]
-                    batch_actions = rollout_data[1][index]
-                    batch_log_probs = rollout_data[2][index]
-                    batch_valid_actions = rollout_data[3][index]
-                    batch_rewards = rollout_data[4][index]
+                    batch_states = rollout_states[index]
+                    batch_actions = rollout_actions[index]
+                    batch_log_probs = rollout_log_probs[index]
+                    batch_valid_actions = rollout_valid_actions[index]
+                    batch_rewards = rollout_rewards[index]
                     batch_accumulated_rewards = rollout_accumulated_rewards[index]
                     batch_a_value = a_value[index]
                     v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
@@ -181,6 +195,7 @@ class Agent():
     def evaluate(self, batch_states, batch_valid_actions):
         # batch_states and batch_valid_actions are both in the form of tensor
         # compute V value
+        print(batch_states.shape)
         v_value = self.critic_net(batch_states)
         # compute log probability of batch_actions using the most recent actor_net
         action_distribution = self.actor_net(batch_states)
@@ -190,15 +205,16 @@ class Agent():
         curr_log_probs = normalized_distribution.log()
         return v_value, curr_log_probs
 
-    def save(self, checkpoint_path):
-        print("Model saving...")
-        checkpoint = {"policy_model": self.actor_net.state_dict(), "v_value_model": self.critic_net.state_dict(), "policy_optimizer": }
-        torch.save(checkpoint, checkpoint_path)
-
+    # def save(self, checkpoint_path):
+    #     print("Model saving...")
+    #     # checkpoint = {"policy_model": self.actor_net.state_dict(), "v_value_model": self.critic_net.state_dict(), "policy_optimizer": }
+    #     torch.save(checkpoint, checkpoint_path)
 
     def rollout(self, states, actions, log_probs, valid_actions, rewards, episode_lengths):
         self.rollout_data[0].append(states)
+        # print("states: ", self.rollout_data[0].size)
         self.rollout_data[1].append(actions)
+        print("actions: ", self.rollout_data[1])
         self.rollout_data[2].append(log_probs)
         self.rollout_data[3].append(valid_actions)
         self.rollout_data[4].append(rewards)
@@ -207,7 +223,6 @@ class Agent():
 
 if __name__ == "__main__":
     env = AutoPark_Env()
-    env.init_world()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     agent = Agent(env, device=device)
     agent.learn(1000)
