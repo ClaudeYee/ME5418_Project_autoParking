@@ -405,9 +405,8 @@ class AutoPark_Env(gym.Env):
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
 
             state = state.squeeze(0)
-            self.states.append(state.cpu().numpy())
+            self.states.append(state)
 
-            del state
 
             self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
             self.robot_states.append(robot_state)   # save the state for each move
@@ -521,8 +520,9 @@ class AutoPark_Env(gym.Env):
         action_index = [selected_index.item() // 9, selected_index.item() % 9]
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
 
-
-        return state.detach(), action_index, log_prob.detach(), valid_action
+        state = state.cpu().detach().numpy()
+        log_prob = log_prob.cpu().detach().numpy()
+        return state, action_index, log_prob, valid_action
 
     # Plot the environment for every step
     def plot_env(self, step):

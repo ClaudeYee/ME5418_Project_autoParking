@@ -13,6 +13,9 @@ from model import ActorNet, CriticNet
 from Auto_Parking import AutoPark_Env
 from parameter import *
 
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
 
 # TODO: Remember to modify the reward function to satisfy our target!
 class Agent():
@@ -111,39 +114,50 @@ class Agent():
 
             # compute advantage function value
             rollout_states = np.array(self.rollout_data[0]).reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
+            rollout_actions = np.array(self.rollout_data[1]).reshape(-1, 2)
+            rollout_log_probs = np.array(self.rollout_data[2]).reshape(-1)
+            rollout_valid_actions = np.array(self.rollout_data[3]).reshape(-1, 81)
+            rollout_rewards = np.array(self.rollout_data[4]).reshape(-1)
+
             rollout_states = torch.tensor(rollout_states, dtype=torch.float).to(self.device)
             print("rollout_states: ", rollout_states.shape)
-            rollout_actions = torch.tensor(self.rollout_data[1], dtype=torch.float).to(self.device)
-            rollout_log_probs = torch.tensor(self.rollout_data[2], dtype=torch.float).to(self.device)
-            rollout_valid_actions = torch.tensor(self.rollout_data[3], dtype=torch.float).to(self.device)
-            rollout_rewards = torch.tensor(self.rollout_data[4], dtype=torch.float).to(self.device)
+            rollout_actions = torch.tensor(rollout_actions, dtype=torch.float).to(self.device)
+            rollout_log_probs = torch.tensor(rollout_log_probs, dtype=torch.float).to(self.device)
+            rollout_valid_actions = torch.tensor(rollout_valid_actions, dtype=torch.float).to(self.device)
+            rollout_rewards = torch.tensor(rollout_rewards, dtype=torch.float).to(self.device)
             rollout_accumulated_rewards = self.compute_accumulated_rewards(rollout_rewards).to(self.device)
 
             # V_phi_k
-            old_v_value, _ = self.evaluate(rollout_states, rollout_valid_actions)
-
-            a_value = rollout_accumulated_rewards.detach() - old_v_value.detach()
-            # advantage normalization
-            a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
+            # old_v_value, _ = self.evaluate_no_grad(rollout_states, rollout_valid_actions)
+            #
+            # a_value = rollout_accumulated_rewards.detach() - old_v_value.detach()
+            # # advantage normalization
+            # a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
 
             rollout_step = rollout_states.size(0)
-            indices = np.array(rollout_step)
+            indices = np.array(range(rollout_step))
             np.random.shuffle(indices)
             # ----- This is the loop where we update our actor_net and critic_net for some n epochs ----- #
-            for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
 
-                for start in range(0, rollout_step, self.batch_size):
+            for start in range(0, rollout_step, self.batch_size):
 
-                # Calculate V_phi and pi_theta(a_t | s_t)
-                    end = start + self.batch_size
-                    index = indices[start:end]
-                    batch_states = rollout_states[index]
-                    batch_actions = rollout_actions[index]
-                    batch_log_probs = rollout_log_probs[index]
-                    batch_valid_actions = rollout_valid_actions[index]
-                    batch_rewards = rollout_rewards[index]
-                    batch_accumulated_rewards = rollout_accumulated_rewards[index]
-                    batch_a_value = a_value[index]
+            # Calculate V_phi and pi_theta(a_t | s_t)
+                end = start + self.batch_size
+                index = indices[start:end]
+                batch_states = rollout_states[index]
+                batch_actions = rollout_actions[index]
+                batch_log_probs = rollout_log_probs[index]
+                batch_valid_actions = rollout_valid_actions[index]
+                batch_rewards = rollout_rewards[index]
+                batch_accumulated_rewards = rollout_accumulated_rewards[index]
+
+                batch_old_v_value, _ = self.evaluate_no_grad(batch_states, batch_valid_actions)
+
+                batch_a_value = batch_accumulated_rewards.detach() - batch_old_v_value.detach()
+                # advantage normalization
+                batch_a_value = (batch_a_value - batch_a_value.mean()) / (batch_a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
+
+                for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
                     v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
 
                     # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
@@ -153,7 +167,7 @@ class Agent():
                     # Calculate surrogate losses.
                     # a_value is the advantage at k-th iteration
                     surr1 = ratios * batch_a_value
-                    surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * a_value
+                    surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * batch_a_value
                     # Calculate actor and critic losses.
                     # NOTE: we take the negative min of the surrogate losses because we're trying to maximize
                     # the performance function, but Adam minimizes the loss. So minimizing the negative
@@ -199,10 +213,28 @@ class Agent():
 
         # compute log probability of batch_actions using the most recent actor_net
         action_distribution = self.actor_net(batch_states, batch_states.shape[0])
+        print("action_dis: ", action_distribution.shape)
+        print("valid_actions: ", batch_valid_actions.shape)
         valid_action_distribution = action_distribution * batch_valid_actions   # product by elements
         normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
 
         curr_log_probs = normalized_distribution.log()
+        return v_value, curr_log_probs
+
+    def evaluate_no_grad(self, rollout_states, rollout_valid_actions):
+        with torch.no_grad():
+            # rollout_states and rollout_valid_actions are both in the form of tensor
+            # compute V value
+            print(rollout_states.shape)
+            v_value, _ = self.critic_net(rollout_states, rollout_states.shape[0])
+            # show_gpu_memory_taken(v_value)
+
+            # compute log probability of batch_actions using the most recent actor_net
+            action_distribution = self.actor_net(rollout_states, rollout_states.shape[0])
+            valid_action_distribution = action_distribution * torch.from_numpy(rollout_valid_actions)   # product by elements
+            normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
+
+            curr_log_probs = normalized_distribution.log()
         return v_value, curr_log_probs
 
     # def save(self, checkpoint_path):
@@ -221,6 +253,9 @@ class Agent():
             self.rollout_data[3].append(valid_actions)
             self.rollout_data[4].append(rewards)
             self.rollout_data[5].append(episode_length)
+
+            # rollout_data = np.array(self.rollout_data)
+            # return rollout_data
         # else:
 
 def show_gpu_memory_taken(one_tensor):

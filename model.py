@@ -74,12 +74,12 @@ class CriticNet(nn.Module):
 
 
 class FullModel(nn.Module):
-    def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=81):
+    def __init__(self, device, in_channel=3, lstm_layers=2, output_dim=512, action_dim=81):
         super(FullModel, self).__init__()
-
+        self.device = device
         self.cnn = CNNBlock(in_channel, output_dim)
-        self.actor = ActorNet(in_channel, lstm_layers, output_dim, action_dim)
-        self.critic = CriticNet(in_channel, lstm_layers, output_dim)
+        self.actor = ActorNet(in_channel, lstm_layers, output_dim, action_dim).to(device)
+        self.critic = CriticNet(in_channel, lstm_layers, output_dim).to(device)
 
     def forward(self, x, batch_size):
         actor_outcome, (h_np, c_np) = self.actor(x, batch_size)
@@ -91,11 +91,11 @@ loss_function = nn.MSELoss()
 
 
 class FullModelTester:
-    def __init__(self):
-        self.model = self.load_model()
+    def __init__(self, device):
+        self.model = self.load_model(device)
 
-    def load_model(self):
-        model = FullModel()
+    def load_model(self,device):
+        model = FullModel(device)
         model.eval()
         return model
 
@@ -116,7 +116,8 @@ class FullModelTester:
 
 
 if __name__ == "__main__":
-    batch_size = 2
+    device = torch.device("cuda")
+    batch_size = 20
     channels = 3
     height = 60
     width = 60
@@ -124,16 +125,16 @@ if __name__ == "__main__":
 
     expected_actor_shape = (batch_size, num_actions)
     expected_critic_shape = (batch_size, 1)
-    actor_target = torch.randn(1, 81)
+    actor_target = torch.randn(1, 81).to(device)
     # print("actor_target_shape: ", actor_target.shape)
     # critic_target = torch.randn(1, 1)
 
     loss_function_actor = nn.MSELoss()
     # loss_function_critic = nn.MSELoss()
 
-    tester = FullModelTester()
+    tester = FullModelTester(device)
 
-    sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True)
+    sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True).to(device)
     print("input_shape", sample_input.shape)
 
     actor_outcome, critic_outcome = tester.test_with_input(sample_input,batch_size)
