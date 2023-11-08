@@ -275,6 +275,7 @@ class State():
 class AutoPark_Env(gym.Env):
     def __init__(self, world0=None, blank_world=False):  # blank_world: there is no robot and any parking lots
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = torch.device("cpu")
         self.world_size = WORLD_SIZE
         self.robot_size = ROBOT_SIZE
         self.parklot_size = PARKLOT_SIZE
@@ -403,15 +404,16 @@ class AutoPark_Env(gym.Env):
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
 
-            # self.states = torch.cat((self.states, state), dim=0).to(self.device)
             state = state.squeeze(0)
             self.states.append(state.cpu().numpy())
+
+            del state
 
             self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
             self.robot_states.append(robot_state)   # save the state for each move
             self.rewards.append(reward)             # save the reward for each move
 
-            self.plot_env(step=i)
+            # self.plot_env(step=i)
 
             if done:
                 # self.save_accumulated_reward(self.accumulated_reward)
@@ -446,7 +448,7 @@ class AutoPark_Env(gym.Env):
         return reward
 
     def reset(self):
-        del self.
+        # del self.
         self.init_world()
 
     def save_robot_state(self, robot_state):
@@ -487,9 +489,10 @@ class AutoPark_Env(gym.Env):
         # state = np.dstack((state_obs_lot, state_next_pos, state_hitbox))
         state = np.array([robot_state.state, robot_state.next_pos, robot_state.next_hitbox])
 
+        # actor_net = actor_net.detach().to(self.device)
         state = torch.tensor(state, dtype=torch.float).unsqueeze(dim=0).detach().to(self.device)
         # torch.unsqueeze(state, dim=)
-        action_distribution, _ = actor_net(state)
+        action_distribution, _ = actor_net(state, 1)
         # print("action_distribution: ", action_distribution)
         valid_action = []
         #
@@ -519,7 +522,7 @@ class AutoPark_Env(gym.Env):
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
 
 
-        return state, action_index, log_prob, valid_action
+        return state.detach(), action_index, log_prob.detach(), valid_action
 
     # Plot the environment for every step
     def plot_env(self, step):

@@ -98,8 +98,6 @@ class Agent():
 
             self.env.init_world()
 
-            print("self.env", self.env)
-
             # rollout prefix but no self are all in tensor form
             print("data has been collected into one rollout")
             # rollout_data = np.array(self.rollout_data)
@@ -112,8 +110,8 @@ class Agent():
             # batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
 
             # compute advantage function value
-            self.rollout_data[0] = np.array(self.rollout_data[0]).reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
-            rollout_states = torch.tensor(self.rollout_data[0], dtype=torch.float).to(self.device)
+            rollout_states = np.array(self.rollout_data[0]).reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
+            rollout_states = torch.tensor(rollout_states, dtype=torch.float).to(self.device)
             print("rollout_states: ", rollout_states.shape)
             rollout_actions = torch.tensor(self.rollout_data[1], dtype=torch.float).to(self.device)
             rollout_log_probs = torch.tensor(self.rollout_data[2], dtype=torch.float).to(self.device)
@@ -122,9 +120,9 @@ class Agent():
             rollout_accumulated_rewards = self.compute_accumulated_rewards(rollout_rewards).to(self.device)
 
             # V_phi_k
-            v_value, _ = self.evaluate(rollout_states, rollout_valid_actions)
+            old_v_value, _ = self.evaluate(rollout_states, rollout_valid_actions)
 
-            a_value = rollout_accumulated_rewards.detach() - v_value.detach()
+            a_value = rollout_accumulated_rewards.detach() - old_v_value.detach()
             # advantage normalization
             a_value = (a_value - a_value.mean()) / (a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
 
@@ -196,9 +194,11 @@ class Agent():
         # batch_states and batch_valid_actions are both in the form of tensor
         # compute V value
         print(batch_states.shape)
-        v_value = self.critic_net(batch_states)
+        v_value, _ = self.critic_net(batch_states, batch_states.shape[0])
+        show_gpu_memory_taken(v_value)
+
         # compute log probability of batch_actions using the most recent actor_net
-        action_distribution = self.actor_net(batch_states)
+        action_distribution = self.actor_net(batch_states, batch_states.shape[0])
         valid_action_distribution = action_distribution * batch_valid_actions   # product by elements
         normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
 
@@ -210,19 +210,27 @@ class Agent():
     #     # checkpoint = {"policy_model": self.actor_net.state_dict(), "v_value_model": self.critic_net.state_dict(), "policy_optimizer": }
     #     torch.save(checkpoint, checkpoint_path)
 
-    def rollout(self, states, actions, log_probs, valid_actions, rewards, episode_lengths):
-        self.rollout_data[0].append(states)
-        # print("states: ", self.rollout_data[0].size)
-        self.rollout_data[1].append(actions)
-        print("actions: ", self.rollout_data[1])
-        self.rollout_data[2].append(log_probs)
-        self.rollout_data[3].append(valid_actions)
-        self.rollout_data[4].append(rewards)
-        self.rollout_data[5].append(episode_lengths)
+    def rollout(self, states, actions, log_probs, valid_actions, rewards, episode_length):
+        if True:
+        # if self.timesteps_rollout < sum(self.rollout_data[5])+episode_length:
+            self.rollout_data[0].append(states)
+            # print("states: ", self.rollout_data[0].size)
+            self.rollout_data[1].append(actions)
+            print("actions: ", self.rollout_data[1])
+            self.rollout_data[2].append(log_probs)
+            self.rollout_data[3].append(valid_actions)
+            self.rollout_data[4].append(rewards)
+            self.rollout_data[5].append(episode_length)
+        # else:
 
+def show_gpu_memory_taken(one_tensor):
+    memory_used = one_tensor.element_size() * one_tensor.nelement()
+    memory_used = memory_used / (1024 * 1024)
+    print("It takes {} Mb.".format(memory_used))
 
 if __name__ == "__main__":
     env = AutoPark_Env()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cpu")
     agent = Agent(env, device=device)
     agent.learn(1000)

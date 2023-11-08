@@ -28,12 +28,12 @@ class CNNBlock(nn.Module):
         # fc
         self.fc_layer6 = nn.Linear(1024, output_dim)  # [512, 1]
 
-    def forward(self, x):
+    def forward(self, x, batch_size):
         embedding_output = self.cnn_layer1(x)
         embedding_output = self.cnn_layer2(embedding_output)
         embedding_output = self.cnn_layer3(embedding_output)
         embedding_output = self.cnn_layer4(embedding_output)
-        embedding_output = embedding_output.view(1, -1)
+        embedding_output = embedding_output.view(batch_size, -1)
         embedding_output = self.fc_dropout_layer5(embedding_output)
         output = self.fc_layer6(embedding_output)
 
@@ -49,8 +49,8 @@ class ActorNet(nn.Module):
         self.policy_fc = nn.Linear(output_dim, action_dim)
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, x):
-        embedding_output = self.cnn(x)
+    def forward(self, x, batch_size):
+        embedding_output = self.cnn(x, batch_size)
         output, (h_n, c_n) = self.lstm(embedding_output)
         # generate policy distribution on actions
         policy_dist = self.policy_fc(output)
@@ -65,8 +65,8 @@ class CriticNet(nn.Module):
         self.lstm = nn.LSTM(input_size=output_dim, hidden_size=output_dim, num_layers=lstm_layers, batch_first=True)
         self.value_layer = nn.Linear(output_dim, 1)
 
-    def forward(self, x):
-        embedding_output = self.cnn(x)
+    def forward(self, x, batch_size):
+        embedding_output = self.cnn(x, batch_size)
         output, (h_n, c_n) = self.lstm(embedding_output)
         # generate the value of current state
         value = self.value_layer(output)
@@ -81,9 +81,9 @@ class FullModel(nn.Module):
         self.actor = ActorNet(in_channel, lstm_layers, output_dim, action_dim)
         self.critic = CriticNet(in_channel, lstm_layers, output_dim)
 
-    def forward(self, x):
-        actor_outcome, (h_np, c_np) = self.actor(x)
-        critic_outcome, (h_nv, c_nv) = self.critic(x)
+    def forward(self, x, batch_size):
+        actor_outcome, (h_np, c_np) = self.actor(x, batch_size)
+        critic_outcome, (h_nv, c_nv) = self.critic(x, batch_size)
         return actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv)
 
 
@@ -99,9 +99,9 @@ class FullModelTester:
         model.eval()
         return model
 
-    def test_with_input(self, sample_input):
+    def test_with_input(self, sample_input, batch_size):
         with torch.no_grad():
-            actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv) = self.model(sample_input)
+            actor_outcome, (h_np, c_np), critic_outcome, (h_nv, c_nv) = self.model(sample_input, batch_size)
 
         return actor_outcome, critic_outcome
 
@@ -116,7 +116,7 @@ class FullModelTester:
 
 
 if __name__ == "__main__":
-    batch_size = 1
+    batch_size = 2
     channels = 3
     height = 60
     width = 60
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     expected_actor_shape = (batch_size, num_actions)
     expected_critic_shape = (batch_size, 1)
     actor_target = torch.randn(1, 81)
-    print("actor_target_shape: ", actor_target.shape)
+    # print("actor_target_shape: ", actor_target.shape)
     # critic_target = torch.randn(1, 1)
 
     loss_function_actor = nn.MSELoss()
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True)
     print("input_shape", sample_input.shape)
 
-    actor_outcome, critic_outcome = tester.test_with_input(sample_input)
+    actor_outcome, critic_outcome = tester.test_with_input(sample_input,batch_size)
     print("actor_outcome_shape: ", actor_outcome.shape)
     print("actor_outcome_type: ", actor_outcome.dtype)
 
