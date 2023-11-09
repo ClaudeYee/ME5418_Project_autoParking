@@ -18,11 +18,11 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class RolloutBuffer():
     def __init__(self):
-        self.states = []
-        self.action_indices = []
-        self.log_probs = []
-        self.valid_actions = []
-        self.rewards = []
+        self.states = np.array([])
+        self.action_indices = np.array([])
+        self.log_probs = np.array([])
+        self.valid_actions = np.array([])
+        self.rewards = np.array([])
         self.episode_lengths = []
 
     def rollout(self, states, action_indices, log_probs, valid_actions, rewards, episode_length, t):
@@ -46,11 +46,11 @@ class RolloutBuffer():
 
 
     def add_data(self, states, action_indices, log_probs, valid_actions, rewards, episode_length):
-        self.states.append(states)
-        self.action_indices.append(action_indices)
-        self.log_probs.append(log_probs)
-        self.valid_actions.append(valid_actions)
-        self.rewards.append(rewards)
+        self.states = np.concatenate(self.states, np.array(states))
+        self.np.concatenate(self.action_indices, np.array(action_indices))
+        np.concatenate(self.log_probs, np.array(log_probs))
+        np.concatenate(self.valid_actions, np.array(valid_actions))
+        np.concatenate(self.rewards, np.array(rewards))
         self.episode_lengths.append(episode_length)
 
 
@@ -157,9 +157,8 @@ class Agent():
             # batch_valid_actions = torch.tensor(self.batch_valid_actions, dtype=torch.float).to(self.device)
 
             # compute advantage function value
-            buffer_states = np.array(self.buffer.states)
-            buffer_states.view([-1, 3, WORLD_SIZE[0], WORLD_SIZE[1]])
-            buffer_actions = np.array(self.buffer.actions).reshape(-1, 2)
+            buffer_states = self.buffer.states.reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
+            buffer_actions = self.buffer.actions.reshape(-1, 2)
             buffer_log_probs = np.array(self.buffer.log_probs).reshape(-1, 81)
             buffer_valid_actions = np.array(self.buffer.valid_actions).reshape(-1, 81)
             buffer_rewards = self.buffer.rewards
