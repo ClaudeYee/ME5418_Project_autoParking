@@ -363,7 +363,7 @@ class AutoPark_Env(gym.Env):
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
             print("not available")
-            init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world_obs)
+            init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world_obs, world_pklot)
             return init_robot_pos, init_robot_dir, init_robot_hitbox
 
     def step(self, actor_net, robot_state, done=False):

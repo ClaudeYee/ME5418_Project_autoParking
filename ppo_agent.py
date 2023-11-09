@@ -18,11 +18,11 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class RolloutBuffer():
     def __init__(self):
-        self.states = np.array([])
+        self.states = None
         self.action_indices = np.array([])
         self.log_probs = np.array([])
         self.valid_actions = np.array([])
-        self.rewards = np.array([])
+        self.rewards = []
         self.episode_lengths = []
 
     def rollout(self, states, action_indices, log_probs, valid_actions, rewards, episode_length, t):
@@ -42,16 +42,24 @@ class RolloutBuffer():
 
         return None
 
-
-
+    def init_data(self, states, action_indices, log_probs, valid_actions, rewards, episode_length):
+        self.states = np.array(states)
+        self.action_indices = np.array(action_indices)
+        self.log_probs = np.array(log_probs)
+        self.valid_actions = np.array(valid_actions)
+        self.rewards = [rewards]
+        self.episode_lengths = [episode_length]
 
     def add_data(self, states, action_indices, log_probs, valid_actions, rewards, episode_length):
-        self.states = np.concatenate(self.states, np.array(states))
-        self.np.concatenate(self.action_indices, np.array(action_indices))
-        np.concatenate(self.log_probs, np.array(log_probs))
-        np.concatenate(self.valid_actions, np.array(valid_actions))
-        np.concatenate(self.rewards, np.array(rewards))
-        self.episode_lengths.append(episode_length)
+        if self.states is None:
+            self.init_data(states, action_indices, log_probs, valid_actions, rewards, episode_length)
+        else:
+            self.states = np.concatenate((self.states, np.array(states)), axis=0)
+            self.action_indices = np.concatenate((self.action_indices, np.array(action_indices)), axis=0)
+            self.log_probs = np.concatenate((self.log_probs, np.array(log_probs)), axis=0)
+            self.valid_actions = np.concatenate((self.valid_actions, np.array(valid_actions)), axis=0)
+            self.rewards.append(rewards)
+            self.episode_lengths.append(episode_length)
 
 
 # TODO: Remember to modify the reward function to satisfy our target!
@@ -111,11 +119,13 @@ class Agent():
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
             episode_num = 0
+            self.env.init_world()
             if tmp_buffer != None:
                 self.buffer = tmp_buffer
                 t = self.buffer.episode_lengths[0]
 
             while t < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
+                print("Collect data into a buffer")
                 # The following process is done in one buffer
                 # rewards in this episode
                 print("actor_net: ", next(self.actor_net.parameters()).device)
@@ -131,7 +141,7 @@ class Agent():
                 # print(self.batch_episode_lengths)
                 # print("env.states: ", env.states.shape)
                 tmp_buffer = self.buffer.rollout(env.states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length, t)
-                self.env.init_world()
+                self.env.init_robot(env.world_obs, env.world_pklot)
                 # buffer_states.append(env.robot_states)
                 # buffer_actions.append(env.actions)
                 # buffer_log_probs.append(env.log_probs)
@@ -158,14 +168,13 @@ class Agent():
 
             # compute advantage function value
             buffer_states = self.buffer.states.reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
-            buffer_actions = self.buffer.actions.reshape(-1, 2)
-            buffer_log_probs = np.array(self.buffer.log_probs).reshape(-1, 81)
-            buffer_valid_actions = np.array(self.buffer.valid_actions).reshape(-1, 81)
+            buffer_action_indices = self.buffer.action_indices.reshape(-1, 2)
+            buffer_log_probs = self.buffer.log_probs.reshape(-1, 81)
+            buffer_valid_actions = self.buffer.valid_actions.reshape(-1, 81)
             buffer_rewards = self.buffer.rewards
-
             buffer_states = torch.tensor(buffer_states, dtype=torch.float)
             # print("rollout_states: ", rollout_states.shape)
-            buffer_actions = torch.tensor(buffer_actions, dtype=torch.float)
+            buffer_action_indices = torch.tensor(buffer_action_indices, dtype=torch.float)
             buffer_log_probs = torch.tensor(buffer_log_probs, dtype=torch.float)
             buffer_valid_actions = torch.tensor(buffer_valid_actions, dtype=torch.float)
             # rollout_rewards = torch.tensor(rollout_rewards, dtype=torch.float).to(self.device)
@@ -185,12 +194,12 @@ class Agent():
             # ----- This is the loop where we update our actor_net and critic_net for some n epochs ----- #
 
             for start in range(0, buffer_step, self.batch_size):
-
+                print("Starts to divide buffer into mini batches.")
             # Calculate V_phi and pi_theta(a_t | s_t)
                 end = start + self.batch_size
                 index = indices[start:end]
                 batch_states = buffer_states[index].to(device)
-                batch_actions = buffer_actions[index].to(device)
+                batch_action_indices = buffer_action_indices[index].to(device)
                 batch_log_probs = buffer_log_probs[index].to(device)
                 batch_valid_actions = buffer_valid_actions[index].to(device)
                 # batch_rewards = rollout_rewards[index]
@@ -261,8 +270,6 @@ class Agent():
 
         # compute log probability of batch_actions using the most recent actor_net
         action_distribution, _ = self.actor_net(batch_states, batch_states.shape[0])
-        print("action_dis: ", action_distribution.shape)
-        print("valid_actions: ", batch_valid_actions.shape)
         valid_action_distribution = action_distribution * batch_valid_actions   # product by elements
         normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
 
