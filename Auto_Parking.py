@@ -337,6 +337,8 @@ class AutoPark_Env(gym.Env):
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
     def init_robot(self, world_obs, world_pklot):
+        self.episode_length = 0
+
         # pos_x and pos_y refer to the center point coordinate of the robot
         coord_x, coord_y = np.random.randint(3, world_obs.shape[0] - 3), np.random.randint(3, world_obs.shape[1] - 3)
         # randomly generate a heading of the robot
@@ -417,7 +419,8 @@ class AutoPark_Env(gym.Env):
             if done:
                 # self.save_accumulated_reward(self.accumulated_reward)
                 print("The robot has successfully parked in the parking lot, task succeeded!")
-                break
+                return t
+
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
         # print("self.states", self.states.shape)
@@ -515,7 +518,7 @@ class AutoPark_Env(gym.Env):
         action_distribution = Categorical(normalized_probabilities)
 
         selected_index = action_distribution.sample()
-        log_prob = action_distribution.log_prob(selected_index)
+        log_prob = normalized_probabilities
 
         action_index = [selected_index.item() // 9, selected_index.item() % 9]
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
