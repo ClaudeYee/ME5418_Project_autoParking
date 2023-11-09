@@ -115,6 +115,10 @@ class Agent():
     def learn(self, total_timesteps):
         tmp_buffer = None
         k = 0
+        iteration_times = 0
+
+
+
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
@@ -213,6 +217,7 @@ class Agent():
                 batch_a_value = (batch_a_value - batch_a_value.mean()) / (batch_a_value.std() + 1e-10)  # 1e-10 is added to prevent zero denominator
 
                 for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
+                    iteration_times += 1
                     v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
 
                     # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
@@ -243,10 +248,13 @@ class Agent():
                     critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
                     self.critic_optimizer.step()
 
-            # if
-            # batch_rewards.mean().item()
+                    self.writer.add_scalar('accumulated_rewards/time', batch_accumulated_rewards.cpu().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('actor_loss/time', actor_loss.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('critic_loss/time', critic_loss.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('policy_gradient/time', actor_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('v_value_gradient/time', critic_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
 
-
+        self.writer.flush()
 
     # compute accumulated rewards
     def compute_accumulated_rewards(self, batch_rewards):
@@ -300,14 +308,10 @@ class Agent():
     #         # return rollout_data
     #     # else:
 
-def show_gpu_memory_taken(one_tensor):
-    memory_used = one_tensor.element_size() * one_tensor.nelement()
-    memory_used = memory_used / (1024 * 1024)
-    print("It takes {} Mb.".format(memory_used))
 
 if __name__ == "__main__":
     env = AutoPark_Env()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     agent = Agent(env, device=device)
-    agent.learn(1000)
+    agent.learn(2000)
