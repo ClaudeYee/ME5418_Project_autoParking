@@ -12,6 +12,7 @@ import math
 import copy
 # from gym.envs.classic_control import rendering
 from obs_pklots_generator import generate_obs, generate_pklots
+from model import ActorNet
 
 from parameter import *
 import torch
@@ -351,11 +352,9 @@ class AutoPark_Env(gym.Env):
         init_robot_state = State(world_pklot-world_obs, init_robot_pos)
         init_robot_hitbox = init_robot_state.next_hitbox
 
-        aaa = check_available(init_robot_hitbox, world_obs)
-
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
-        if world_obs[coord_x, coord_y] == 0 and check_available(init_robot_hitbox, world_obs):
+        if (world_obs[coord_x, coord_y] == 0) and check_available(init_robot_hitbox, world_obs):
         # if check_available(init_robot_hitbox, world_obs):
             # init_robot_pos_coord = [pos_x, pos_y]
             # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
@@ -553,10 +552,10 @@ def check_available(target, world):
     # with such position and direction can be placed in the world
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
-            if target[i][j] != 0:
-                if world[i][j] != 0:
-                    print("will stuck")
-                    return False
+            if target[i][j] == 1 and world[i][j] == 1:
+                print("will stuck")
+                return False
+    print("not stuck")
     return True
 
 
@@ -574,4 +573,6 @@ if __name__ == "__main__":
     # img_save_path = "test_pictures/"
     env = AutoPark_Env()
     env.init_world()
-    env.run_episode()
+    act = ActorNet().to("cuda")
+
+    env.run_episode(act, 0)
