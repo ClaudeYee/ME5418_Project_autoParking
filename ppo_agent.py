@@ -126,9 +126,10 @@ class Agent():
                 self.buffer = tmp_buffer
                 t = self.buffer.episode_lengths[0]
 
-            while t < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
+            while sum(self.buffer.episode_lengths) < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
                 print("total time steps run {}".format(k))
+                print("time steps added to buffer {}".format(t))
                 # The following process is done in one buffer
                 # rewards in this episode
                 print("actor_net: ", next(self.actor_net.parameters()).device)
@@ -247,11 +248,11 @@ class Agent():
                     critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
                     self.critic_optimizer.step()
 
-                    self.writer.add_scalar('accumulated_rewards/time', batch_accumulated_rewards.cpu().numpy().mean().item(), iteration_times)
-                    self.writer.add_scalar('actor_loss/time', actor_loss.cpu().detach().numpy().mean().item(), iteration_times)
-                    self.writer.add_scalar('critic_loss/time', critic_loss.cpu().detach().numpy().mean().item(), iteration_times)
-                    self.writer.add_scalar('policy_gradient/time', actor_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
-                    self.writer.add_scalar('v_value_gradient/time', critic_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('accumulated_rewards/episode', batch_accumulated_rewards.cpu().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('actor_loss/episode', actor_loss.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('critic_loss/episode', critic_loss.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('policy_gradient/episode', actor_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
+                    self.writer.add_scalar('v_value_gradient/episode', critic_grad_norm.cpu().detach().numpy().mean().item(), iteration_times)
 
         self.writer.flush()
 
@@ -313,4 +314,4 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     agent = Agent(env, device=device)
-    agent.learn(40000)
+    agent.learn(400)

@@ -42,7 +42,7 @@ class State():
         # assert (len(world0.shape) == 2 and world0.shape == goals.shape)
         self.state = world_obs_pklot.copy()
         self.current_pos = pos.copy()
-        self.next_pos = np.zeros(WORLD_SIZE)
+        self.next_pos = -1 * np.ones(WORLD_SIZE)
         self.robot_current_state = self.getState()  # TODO: This might not be needed later.
         self.robot_next_state = self.robot_current_state.copy()
         self.robot_size = carSize
@@ -94,7 +94,7 @@ class State():
     def getState(self):
         size = [np.size(self.current_pos, 0), np.size(self.current_pos, 1)]
         for i in range(size[0]):
-            for j in range(size[0]):
+            for j in range(size[1]):
                 if self.current_pos[i, j] != -1:
                     return [[i, j], self.current_pos[i, j]]
 
@@ -348,18 +348,21 @@ class AutoPark_Env(gym.Env):
         init_robot_pos = -1 * np.ones([world_obs.shape[0], world_obs.shape[1]])
         init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
 
-        self.init_robot_state = State(world_pklot-world_obs, init_robot_pos)
-        init_shape = self.init_robot_state.getShape(ROBOT_SIZE)
-        init_robot_hitbox = self.init_robot_state.next_hitbox
+        init_robot_state = State(world_pklot-world_obs, init_robot_pos)
+        init_robot_hitbox = init_robot_state.next_hitbox
+
+        aaa = check_available(init_robot_hitbox, world_obs)
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
         if world_obs[coord_x, coord_y] == 0 and check_available(init_robot_hitbox, world_obs):
+        # if check_available(init_robot_hitbox, world_obs):
             # init_robot_pos_coord = [pos_x, pos_y]
             # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
             # init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
             # init_robot_dir = dir
             # init_robot_hitbox = init_hitbox
+            self.init_robot_state = init_robot_state
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
             print("not available")
@@ -409,13 +412,12 @@ class AutoPark_Env(gym.Env):
             state = state.squeeze(0)
             self.states.append(state)
 
-
             self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
             self.robot_states.append(robot_state)   # save the state for each move
             self.rewards.append(reward)             # save the reward for each move
 
-            # self.plot_env(step=i)
-
+            self.plot_env(step=i)
+            # 
             if done:
                 # self.save_accumulated_reward(self.accumulated_reward)
                 print("The robot has successfully parked in the parking lot, task succeeded!")
@@ -511,8 +513,10 @@ class AutoPark_Env(gym.Env):
 
             # re-normalize the distribution
         total_probability = action_distribution.sum()
-        # print("total_probability: ", total_probability)
-        test_state = robot_state.state + robot_state.next_hitbox
+        if total_probability < 1e-10:
+            print("valid_action number", sum(valid_action))
+            print("total_probability: ", total_probability)
+
         normalized_probabilities = action_distribution/total_probability
 
         action_distribution = Categorical(normalized_probabilities)
@@ -544,12 +548,14 @@ class AutoPark_Env(gym.Env):
         plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
 
 
-def check_available(target, world):  # check whether the target(60*60)(could be world_pklot or world_robot) area with such position and direction can be placed in the world
-    clearance = (ROBOT_SIZE[1] - 1) / 2
+def check_available(target, world):
+    # check whether the target(60*60)(could be world_pklot or world_robot) area
+    # with such position and direction can be placed in the world
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
             if target[i][j] != 0:
                 if world[i][j] != 0:
+                    print("will stuck")
                     return False
     return True
 

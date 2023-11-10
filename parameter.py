@@ -8,7 +8,7 @@ DIST_REWARD_PARAM1 = 0.1
 MAX_EPISODE_LENGTH = 200        # The maximum steps that an episode can hold
 TIMESTEPS_ROLLOUT = 512
 BATCH_SIZE = 128
-UPDATES_PER_ITERATION = 5       # how many times pi in numerator will update
+UPDATES_PER_ITERATION = 1       # how many times pi in numerator will update
 
 IN_CHANNEL = 3
 LSTM_LAYERS = 2
