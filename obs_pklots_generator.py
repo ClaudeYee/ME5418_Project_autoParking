@@ -189,6 +189,7 @@ def generate_pklots(size, parklot_size, obs_world):
             break
     # Check whether pklot_world has any conflict with obs_world
     #TODO: --------------------------Remember to fix this function--------------------------------------
+
     def place_available(pklot_world, obs_world):
         obs = np.argwhere(obs_world > 0)
         pklot = np.argwhere(pklot_world > 0)

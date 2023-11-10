@@ -549,8 +549,8 @@ def check_available(target, world):  # check whether the target(60*60)(could be 
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
             if target[i][j] != 0:
-                if world[i][j] == 0:
-                    return True
+                if world[i][j] != 0:
+                    return False
     return True
 
 

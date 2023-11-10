@@ -117,8 +117,6 @@ class Agent():
         k = 0
         iteration_times = 0
 
-
-
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
@@ -130,6 +128,7 @@ class Agent():
 
             while t < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
+                print("total time steps run {}".format(k))
                 # The following process is done in one buffer
                 # rewards in this episode
                 print("actor_net: ", next(self.actor_net.parameters()).device)
@@ -272,7 +271,7 @@ class Agent():
     def evaluate(self, batch_states, batch_valid_actions):
         # batch_states and batch_valid_actions are both in the form of tensor
         # compute V value
-        print(batch_states.shape)
+        # print(batch_states.shape)
         v_value, _ = self.critic_net(batch_states, batch_states.shape[0])
         v_value = v_value.squeeze(-1)
 
@@ -314,4 +313,4 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     agent = Agent(env, device=device)
-    agent.learn(2000)
+    agent.learn(40000)
