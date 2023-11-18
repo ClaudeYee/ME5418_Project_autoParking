@@ -218,7 +218,7 @@ class Agent():
                 # batch_rewards = rollout_rewards[index]
                 batch_accumulated_rewards = buffer_accumulated_rewards[index].to(device)
 
-                batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions, batch_action_indices)
+                batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions)
                 batch_old_v_value = batch_old_v_value.squeeze(-1)
 
                 batch_a_value = batch_accumulated_rewards.detach() - batch_old_v_value.detach()
@@ -227,12 +227,12 @@ class Agent():
 
                 for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
                     iteration_times += 1
-                    v_value, curr_log_prob = self.evaluate(batch_states, batch_valid_actions)
+                    v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
 
                     # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
                     # TL;DR makes gradient ascent easier behind the scenes.
 
-                    ratios = torch.exp(curr_log_prob - batch_log_prob)
+                    ratios = torch.exp(curr_log_probs - batch_log_probs)
 
                     # Calculate surrogate losses.
                     # a_value is the advantage at k-th iteration
@@ -278,7 +278,7 @@ class Agent():
         batch_accumulated_rewards = torch.tensor(batch_accumulated_rewards, dtype=torch.float)
         return batch_accumulated_rewards
 
-    def evaluate(self, batch_states, batch_valid_actions, batch_action_index):
+    def evaluate(self, batch_states, batch_valid_actions):
 
         curr_log_probs = []
         # batch_states and batch_valid_actions are both in the form of tensor
@@ -289,9 +289,8 @@ class Agent():
 
         # compute log probability of batch_actions using the most recent actor_net
         action_distribution, _ = self.actor_net(batch_states, batch_states.shape[0])
-
-        for i in range(batch_action_index.shape[0]):
-            curr_log_probs.append()
+        valid_action_distribution = action_distribution * batch_valid_actions  # product by elements
+        normalized_distribution = valid_action_distribution / valid_action_distribution.sum()  # dont know if the sum would be zero
 
         curr_log_probs = normalized_distribution
 

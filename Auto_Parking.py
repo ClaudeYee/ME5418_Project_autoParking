@@ -550,7 +550,7 @@ class AutoPark_Env(gym.Env):
         action_distribution = Categorical(normalized_probabilities)
 
         selected_index = action_distribution.sample()
-        log_prob = normalized_probabilities[selected_index]
+        log_prob = normalized_probabilities
 
         action_index = [selected_index.item() // 9, selected_index.item() % 9]
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
