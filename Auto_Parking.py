@@ -321,8 +321,8 @@ class AutoPark_Env(gym.Env):
         # if world0:
         #     world = world0.copy()
         # else:
-        # self.world_obs = self.init_obstacles()  # the obstacle channel of the world
-        self.world_obs = np.zeros([60,60])
+        self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        # self.world_obs = np.zeros([60,60])
         self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
         self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs, self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
@@ -459,14 +459,14 @@ class AutoPark_Env(gym.Env):
                 sin_to_pklot2 = np.dot(vector_to_pklot2, move_vector) / (np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot2))
 
                 # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
-                dist_reward1 = sin_to_pklot1 * self.dist_reward_param / (dist_to_pklot1 + 60)
-                dist_reward2 = sin_to_pklot2 * self.dist_reward_param / (dist_to_pklot2 + 60)
+                dist_reward1 = 1 * self.dist_reward_param / (dist_to_pklot1 + 30)
+                dist_reward2 = sin_to_pklot2 * self.dist_reward_param / (dist_to_pklot2 + 30)
                 # TODO: this must be refined later for the dist_reward, for now, just simply sum them up
                 dist_reward = dist_reward1
 
             # 3. Penalty to punish the robot if it moves to much
 
-            reward = dist_reward + translate_cost + rotate_cost
+            reward = dist_reward
         return reward
 
     def reset(self):

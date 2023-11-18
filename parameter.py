@@ -3,13 +3,13 @@ PARKLOT_SIZE = [4, 6]
 WORLD_SIZE = [60, 60]
 PROB = [0.3, 0.5]
 
-DIST_REWARD_PARAM = 30
+DIST_REWARD_PARAM = 10
 
 # reward design
 TRANSLATE_COST = -0.1
 ROTATE_COST = -0.2
 # DISTANCE_REWARD = 0.3
-FINAL_REWARD = 40
+FINAL_REWARD = 400
 
 MAX_EPISODE_LENGTH = 128        # The maximum steps that an episode can hold
 TIMESTEPS_ROLLOUT = 512
@@ -26,7 +26,7 @@ GAMMA = 0.98
 LR = 0.005
 CLIP = 0.2
 
-IMG_SAVE_PATH = "process_visual_episodes_18_Nov"
+IMG_SAVE_PATH = "process_visual_episodes_18_Nov_1"
 
 USE_GPU = False
 TRAIN = False
