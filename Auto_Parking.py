@@ -30,8 +30,6 @@ from torch.distributions import Categorical
     Reward: ACTION_COST for each action, GOAL_REWARD when robot arrives at target
 '''
 
-ACTION_COST, TURNING_COST, CLOSER_REWARD, GOAL_REWARD, FINAL_REWARD = -0.1, -0.2, 0.3, 1.0, 40
-
 
 # opposite_actions = {0: -1, 1: 3, 2: 4, 3: 1, 4: 2, 5: 7, 6: 8, 7: 5, 8: 6}
 # JOINT = False # True for joint estimation of rewards for closeby agents
@@ -282,7 +280,7 @@ class AutoPark_Env(gym.Env):
         self.parklot_size = PARKLOT_SIZE
 
         # tunable parameters for dist_reward
-        self.dist_reward_param = DIST_REWARD_PARAM1
+        self.dist_reward_param = DIST_REWARD_PARAM
 
         self.world_obs = None
         self.world_pklot = None
@@ -323,7 +321,8 @@ class AutoPark_Env(gym.Env):
         # if world0:
         #     world = world0.copy()
         # else:
-        self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        # self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        self.world_obs = np.zeros([60,60])
         self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
         self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs, self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
@@ -373,22 +372,22 @@ class AutoPark_Env(gym.Env):
         # and change the state of our robot and the different parameters accordingly
         ## ------- For now, randomly sample an action from the valid action space for testing without training ------- ##
         # action = select_valid_action(robot_state)
-        state, action, log_prob, valid_action = self.act(actor_net, robot_state)
-        self.actions.append(action)
+        state, action_index, log_prob, valid_action = self.act(actor_net, robot_state)
+        self.actions.append(action_index)
         self.log_probs.append(log_prob)
         # robot_state transition
-        robot_state.moveAgent(action)
-        next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action)
+        robot_state.moveAgent(action_index)
+        next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action_index)
 
         if robot_state.parking_complete() == 1 or robot_state.parking_complete() == 2:
             done = True
         # robot receives reward after conducting an action
-        reward = self.compute_reward(next_robot_coord, next_robot_dir, done)
+        reward = self.compute_reward(next_robot_coord, action_index, done)
 
         # robot_state is a class, while state is a 3x60x60 matrix
         return robot_state, state, reward, done, valid_action
 
-    def run_episode(self, actor_net, t):           # add t to record the number of timesteps run so far in this batch
+    def run_episode(self, actor_net, t, episode_index):           # add t to record the number of timesteps run so far in this batch
         done = False
         robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
         self.robot_states.append(robot_state)  # save the initial robot state
@@ -415,8 +414,8 @@ class AutoPark_Env(gym.Env):
             self.robot_states.append(robot_state)   # save the state for each move
             self.rewards.append(reward)             # save the reward for each move
 
-            self.plot_env(step=i)
-            # 
+            self.plot_env(step=i, episode_index=episode_index)
+
             if done:
                 # self.save_accumulated_reward(self.accumulated_reward)
                 print("The robot has successfully parked in the parking lot, task succeeded!")
@@ -430,24 +429,44 @@ class AutoPark_Env(gym.Env):
 
     # TODO: Let's define it later, because for now, the design of reward mechanism is not so important for env testing.
     # TODO: NOTE: This part is extremely important for training the agent!!! It might be revised for many times.
-    def compute_reward(self, robot_pos, robot_dir, done):
+    def compute_reward(self, robot_coord, action_index, done):
         # 1. Reward for task completion
         if done:
             final_reward = FINAL_REWARD  # if the robot successfully has parked into the the parking lot, it receives a very big reward
             reward = final_reward
         else:
-            # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking lot 2)
-            # a = np.array(list(robot_pos)) - np.array(self.pklot1_coord)
-            dist_to_pklot1 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot1_coord))
-            dist_to_pklot2 = np.linalg.norm(np.array(list(robot_pos)) - np.array(self.pklot2_coord))
-            # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
-            dist_reward1 = self.dist_reward_param * (1 / dist_to_pklot1)
-            dist_reward2 = self.dist_reward_param * (1 / dist_to_pklot2)
-            # TODO: this must be refined later for the dist_reward, for now, just simply sum them up
-            dist_reward = dist_reward1 + dist_reward2
+            translate_cost = 0
+            rotate_cost = 0
+            dist_reward = 0
+            if action_index[1] != 0:
+                rotate_cost = ROTATE_COST
+            if action_index[0] != 0:
+                translate_cost = TRANSLATE_COST
+
+                # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking
+                # lot 2) a = np.array(list(robot_pos)) - np.array(self.pklot1_coord)
+                dist_to_pklot1 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot1_coord))
+                dist_to_pklot2 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot2_coord))
+
+                # calculate the angle between robot heading and the link to the parkinglot center
+                move_angle = (action_index[0]-1) * np.pi / 4
+                move_vector = np.array([np.sin(move_angle), np.cos(move_angle)])
+                vector_to_pklot1 = np.array(self.pklot1_coord) - np.array(list(robot_coord))
+                vector_to_pklot2 = np.array(self.pklot2_coord) - np.array(list(robot_coord))
+
+                # calculate the sin value of the angles
+                sin_to_pklot1 = np.dot(vector_to_pklot1, move_vector) / (np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot1))
+                sin_to_pklot2 = np.dot(vector_to_pklot2, move_vector) / (np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot2))
+
+                # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
+                dist_reward1 = sin_to_pklot1 * self.dist_reward_param / (dist_to_pklot1 + 60)
+                dist_reward2 = sin_to_pklot2 * self.dist_reward_param / (dist_to_pklot2 + 60)
+                # TODO: this must be refined later for the dist_reward, for now, just simply sum them up
+                dist_reward = dist_reward1
+
             # 3. Penalty to punish the robot if it moves to much
-            negative_reward = ACTION_COST
-            reward = dist_reward + negative_reward
+
+            reward = dist_reward + translate_cost + rotate_cost
         return reward
 
     def reset(self):
@@ -518,10 +537,20 @@ class AutoPark_Env(gym.Env):
 
         normalized_probabilities = action_distribution/total_probability
 
+        contains_nan = torch.isnan(normalized_probabilities).any().item()
+        if contains_nan:
+            print("contains NaN value")
+            print("valid_action number", sum(valid_action))
+            print("total_probability: ", total_probability)
+            print("action_distribution: ", action_distribution)
+            print("==================================================================")
+            print(robot_state.state, robot_state.next_pos, robot_state.next_hitbox)
+
+
         action_distribution = Categorical(normalized_probabilities)
 
         selected_index = action_distribution.sample()
-        log_prob = normalized_probabilities
+        log_prob = normalized_probabilities[selected_index]
 
         action_index = [selected_index.item() // 9, selected_index.item() % 9]
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
@@ -531,7 +560,7 @@ class AutoPark_Env(gym.Env):
         return state, action_index, log_prob, valid_action
 
     # Plot the environment for every step
-    def plot_env(self, step):
+    def plot_env(self, step, episode_index):
         plt.switch_backend('agg')
         plt.cla()
         # TODO: might be modified here
@@ -542,9 +571,10 @@ class AutoPark_Env(gym.Env):
         plt.imshow(whole_world, cmap="gray_r")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
         self.img_save_path = IMG_SAVE_PATH
-        if not os.path.exists(self.img_save_path):
-            os.makedirs(self.img_save_path)
-        plt.savefig('{}/step_{}.png'.format(self.img_save_path, step))
+        img_by_episode_save_path = os.path.join(self.img_save_path, 'episode{}'.format(episode_index))
+        if not os.path.exists(img_by_episode_save_path):
+            os.makedirs(img_by_episode_save_path)
+        plt.savefig('{}/step_{}.png'.format(img_by_episode_save_path, step))
 
 
 def check_available(target, world):

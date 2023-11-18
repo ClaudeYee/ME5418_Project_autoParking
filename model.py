@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 # from torchviz import make_dot
 import numpy as np
-
+from torch import optim
+from parameter import LR
 
 class CNNBlock(nn.Module):
     def __init__(self, in_channel=3, output_dim=512):
@@ -117,7 +118,7 @@ class FullModelTester:
 
 if __name__ == "__main__":
     device = torch.device("cuda")
-    batch_size = 20
+    batch_size = 32
     channels = 3
     height = 60
     width = 60
@@ -125,30 +126,39 @@ if __name__ == "__main__":
 
     expected_actor_shape = (batch_size, num_actions)
     expected_critic_shape = (batch_size, 1)
-    actor_target = torch.randn(1, 81).to(device)
+    # actor_target = torch.randn(1, 81).to(device)
+
+    actor_target = 1/81 * torch.ones(1, 81).to(device)
+
     # print("actor_target_shape: ", actor_target.shape)
     # critic_target = torch.randn(1, 1)
 
     loss_function_actor = nn.MSELoss()
     # loss_function_critic = nn.MSELoss()
 
-    tester = FullModelTester(device)
+    actor = ActorNet().to(device)
+    optimizer = optim.Adam(actor.parameters(), lr=LR)
 
-    sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True).to(device)
-    print("input_shape", sample_input.shape)
+    for i in range(1000):
+        sample_input = torch.randn(batch_size, channels, height, width, requires_grad=True).to(device)
+        print("sample_input_mean: ", sample_input.mean())
+        # print("input_shape", sample_input.shape)
+        actor_outcome, _ = actor(sample_input, batch_size)
 
-    actor_outcome, critic_outcome = tester.test_with_input(sample_input,batch_size)
-    print("actor_outcome_shape: ", actor_outcome.shape)
-    print("actor_outcome_type: ", actor_outcome.dtype)
+        # actor_outcome, critic_outcome = actor.test_with_input(sample_input,batch_size)
+        # print("actor_outcome_shape: ", actor_outcome.shape)
+        # print("actor_outcome_type: ", actor_outcome.dtype)
 
-    loss_actor = loss_function_actor(actor_outcome, actor_target)
-    print("loss_actor: ", loss_actor)
-    # make_dot(loss_actor.mean())
-    loss_actor.requires_grad = True
-    # loss_critic = loss_function_critic(critic_outcome, critic_target)
-
-    loss_actor.backward()
-    # loss_critic.backward()
+        loss_actor = loss_function_actor(actor_outcome, actor_target)
+        print("loss_actor: ", loss_actor)
+        # make_dot(loss_actor.mean())
+        # loss_actor.requires_grad = True
+        # loss_critic = loss_function_critic(critic_outcome, critic_target)
+        optimizer.zero_grad()
+        loss_actor.backward(retain_graph=True)
+        actor_grad_norm = torch.nn.utils.clip_grad_norm_(actor.parameters(), max_norm=0.5, norm_type=2)
+        optimizer.step()
+        # loss_critic.backward()
 
     # is_grad_correct_actor = gradcheck(loss_function_actor)
     # print(is_grad_correct_actor)
@@ -161,9 +171,9 @@ if __name__ == "__main__":
     print("Critic Outcome Shape: ", critic_outcome.shape)
     print("\n")
 
-    result = tester.check_output_dimensions(actor_outcome, critic_outcome, expected_actor_shape, expected_critic_shape)
+    # result = tester.check_output_dimensions(actor_outcome, critic_outcome, expected_actor_shape, expected_critic_shape)
 
-    if result:
-        print("Model passed the dimension check")
-    else:
-        print("Model output dimensions do not match expectations")
+    # if result:
+    #     print("Model passed the dimension check")
+    # else:
+    #     print("Model output dimensions do not match expectations")

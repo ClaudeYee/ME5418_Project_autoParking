@@ -28,6 +28,11 @@ class RolloutBuffer():
     def rollout(self, states, action_indices, log_probs, valid_actions, rewards, episode_length, t):
         if t <= TIMESTEPS_ROLLOUT:
             self.add_data(states, action_indices, log_probs, valid_actions, rewards, episode_length)
+            if t == TIMESTEPS_ROLLOUT:
+                tmp_buffer = RolloutBuffer()
+                return  tmp_buffer
+            else:
+                return None
         else:
             end = TIMESTEPS_ROLLOUT - sum(self.episode_lengths)
             # end_tmp = episode_length - end
@@ -40,7 +45,6 @@ class RolloutBuffer():
                           valid_actions[end:], rewards[end:], episode_length - end)
             return tmp_buffer
 
-        return None
 
     def init_data(self, states, action_indices, log_probs, valid_actions, rewards, episode_length):
         self.states = np.array(states)
@@ -116,15 +120,19 @@ class Agent():
         tmp_buffer = None
         k = 0
         iteration_times = 0
+        total_episode_index = 0
 
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
-            episode_num = 0
+            buffer_episode_num = 0
             self.env.init_world()
-            if tmp_buffer != None:
+            if tmp_buffer is not None:
                 self.buffer = tmp_buffer
-                t = self.buffer.episode_lengths[0]
+                if tmp_buffer.episode_lengths:
+                    t = self.buffer.episode_lengths[0]
+                else:
+                    t = 0
 
             while sum(self.buffer.episode_lengths) < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
@@ -133,9 +141,10 @@ class Agent():
                 # The following process is done in one buffer
                 # rewards in this episode
                 print("actor_net: ", next(self.actor_net.parameters()).device)
-                t = self.env.run_episode(self.actor_net, t)
-                print("Episode {} runs {} steps".format(episode_num, env.episode_length))
-                episode_num += 1
+                t = self.env.run_episode(self.actor_net, t, total_episode_index)
+                print("Episode {} runs {} steps".format(buffer_episode_num, env.episode_length))
+                buffer_episode_num += 1
+                total_episode_index += 1
                 # self.batch_states.append(env.robot_states)
                 # self.batch_actions.append(env.actions)
                 # self.batch_log_probs.append(env.log_probs)
@@ -198,8 +207,8 @@ class Agent():
             # ----- This is the loop where we update our actor_net and critic_net for some n epochs ----- #
 
             for start in range(0, buffer_step, self.batch_size):
-                print("Starts to divide buffer into mini batches.")
-            # Calculate V_phi and pi_theta(a_t | s_t)
+                # print("Starts to divide buffer into mini batches.")
+                # Calculate V_phi and pi_theta(a_t | s_t)
                 end = start + self.batch_size
                 index = indices[start:end]
                 batch_states = buffer_states[index].to(device)
@@ -209,7 +218,7 @@ class Agent():
                 # batch_rewards = rollout_rewards[index]
                 batch_accumulated_rewards = buffer_accumulated_rewards[index].to(device)
 
-                batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions)
+                batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions, batch_action_indices)
                 batch_old_v_value = batch_old_v_value.squeeze(-1)
 
                 batch_a_value = batch_accumulated_rewards.detach() - batch_old_v_value.detach()
@@ -218,12 +227,12 @@ class Agent():
 
                 for _ in range(self.updates_per_iteration):  # ALG STEP 6 & 7
                     iteration_times += 1
-                    v_value, curr_log_probs = self.evaluate(batch_states, batch_valid_actions)
+                    v_value, curr_log_prob = self.evaluate(batch_states, batch_valid_actions)
 
                     # Calculate the ratio pi_theta(a_t | s_t) / pi_theta_k(a_t | s_t)
                     # TL;DR makes gradient ascent easier behind the scenes.
 
-                    ratios = torch.exp(curr_log_probs - batch_log_probs)
+                    ratios = torch.exp(curr_log_prob - batch_log_prob)
 
                     # Calculate surrogate losses.
                     # a_value is the advantage at k-th iteration
@@ -269,7 +278,9 @@ class Agent():
         batch_accumulated_rewards = torch.tensor(batch_accumulated_rewards, dtype=torch.float)
         return batch_accumulated_rewards
 
-    def evaluate(self, batch_states, batch_valid_actions):
+    def evaluate(self, batch_states, batch_valid_actions, batch_action_index):
+
+        curr_log_probs = []
         # batch_states and batch_valid_actions are both in the form of tensor
         # compute V value
         # print(batch_states.shape)
@@ -278,8 +289,9 @@ class Agent():
 
         # compute log probability of batch_actions using the most recent actor_net
         action_distribution, _ = self.actor_net(batch_states, batch_states.shape[0])
-        valid_action_distribution = action_distribution * batch_valid_actions   # product by elements
-        normalized_distribution = valid_action_distribution / valid_action_distribution.sum()     # dont know if the sum would be zero
+
+        for i in range(batch_action_index.shape[0]):
+            curr_log_probs.append()
 
         curr_log_probs = normalized_distribution
 
@@ -314,4 +326,4 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     agent = Agent(env, device=device)
-    agent.learn(400)
+    agent.learn(10000)
