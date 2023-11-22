@@ -603,7 +603,6 @@ class AutoPark_Env(gym.Env):
         world_pklots = self.world[1] * 50
         world_robot = self.world[2] * 180
         whole_world = world_obs + world_pklots + world_robot  # 10, 20, 30 is in order to distinguish them in gray level
-        whole_world[int(self.pklot1_coord[0]), int(self.pklot1_coord[1])] = 255
         plt.imshow(whole_world, cmap="gray_r")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
         self.img_save_path = IMG_SAVE_PATH
