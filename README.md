@@ -17,11 +17,11 @@ The follwoing are the required libraries and dependencies in order to be able to
 # Setup Linux
 
 To be able to run the code you have to create a virtual environment by typing these lines in your terminal:
-
+```
 $ virtualenv env
 $ source env/bin/activate
 $ pip3 install -r requirements.txt
-
+```
 # Usage
 
 * To train a new network : run train.py
