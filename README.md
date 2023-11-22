@@ -24,11 +24,13 @@ $ pip3 install -r requirements.txt
 ```
 # Usage
 
-* To train a new network : run train.py
-* To test a preTrained network : run test.py
-* All parameters and hyperparamters to control training / testing / images are in paramter.py
+* To train a new network : run ```train.py```
+* To test a preTrained network : run ```test.py```
+* All parameters and hyperparamters to control training / testing / images are in ```paramter.py```
 
 # Training Process Visualization (Tensorboard)
 
 In order to visualize the and keep track of the training process, you need to  access the Tensorboard module via the terminal using the following command line:
+```
 tensorboard --logdir=./exp
+```
