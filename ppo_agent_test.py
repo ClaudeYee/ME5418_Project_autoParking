@@ -137,10 +137,9 @@ class Agent():
                     t = self.buffer.episode_lengths[0]
                 else:
                     t = 0
-            # if flag:
-            #     self.env.init_robot(env.world_obs, env.world_pklot)
-            #     flag = False
             self.env.init_robot(self.env.world_obs, self.env.world_pklot)
+            # self.env.init_world()
+
             while sum(self.buffer.episode_lengths) < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
                 print("total time steps run {}".format(k))
@@ -160,7 +159,7 @@ class Agent():
                 # print(self.batch_episode_lengths)
                 # print("env.states: ", env.states.shape)
                 tmp_buffer = self.buffer.rollout(self.env.states, self.env.actions, self.env.log_probs, self.env.valid_actions, self.env.rewards, self.env.episode_length, t)
-                # self.env.init_robot(env.world_obs, env.world_pklot)
+                # self.env.init_robot(self.env.world_obs, self.env.world_pklot)
                 # buffer_states.append(env.robot_states)
                 # buffer_actions.append(env.actions)
                 # buffer_log_probs.append(env.log_probs)
@@ -284,8 +283,10 @@ class Agent():
                         flag = True
 
             if buffer_num % save_model_freq == 0:
-                checkpoint_path_actor = checkpoint_dir + '/' + "PPO_actor_model_{}.pth".format(buffer_num)
-                checkpoint_path_critic = checkpoint_dir + '/' + "PPO_critic_model_{}.pth".format(buffer_num)
+                checkpoint_path_actor = checkpoint_dir + '/' + "PPO_actor_model_{}.pth".format(
+                    int(buffer_num/save_model_freq))
+                checkpoint_path_critic = checkpoint_dir + '/' + "PPO_critic_model_{}.pth".format(
+                    int(buffer_num/save_model_freq))
                 print("save checkpoint path : " + checkpoint_path_actor)
                 print("save checkpoint path : " + checkpoint_path_critic)
 

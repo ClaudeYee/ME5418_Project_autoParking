@@ -10,9 +10,9 @@ from datetime import datetime
 def train():
     # Initialize hyperparameters
 
-    max_training_timesteps = int(2e3)
+    max_training_timesteps = int(2e4)
 
-    save_model_freq = 4
+    save_model_freq = 16
 
     checkpoint_dir = "trained_models"
     if not os.path.exists(checkpoint_dir):

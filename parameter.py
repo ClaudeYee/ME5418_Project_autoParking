@@ -26,7 +26,7 @@ LR_CRITIC = 0.001
 LR_ACTOR = 0.0003
 CLIP = 0.2
 
-IMG_SAVE_PATH = "process_visual_episodes_22_Nov_11"
+IMG_SAVE_PATH = "process_visual_episodes_23_Nov_change_initpos"
 
 USE_GPU = False
 TRAIN = False           # if Train = True, save the model
