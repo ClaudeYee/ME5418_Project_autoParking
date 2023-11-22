@@ -6,7 +6,7 @@ import skimage
 import matplotlib.pyplot as plt
 
 
-def generate_obs(size, obstacle_ratio=30, remove_edge_ratio=10):
+def generate_obs(size, obstacle_ratio=20, remove_edge_ratio=10):
     world_size = size[0]
     world = np.zeros((world_size, world_size))
     all_x = range(2, world_size - 2)
@@ -205,15 +205,15 @@ def generate_pklots(size, parklot_size, obs_world):
         return pklot_world, pklot1_coord, pklot2_coord
 
     else:
-        print("Not available, retry to place two parkinglots")
+        # print("Not available, retry to place two parkinglots")
         pklot_world = generate_pklots(world_size, parklot_size, obs_world)
         return pklot_world
 
 
 if __name__ == "__main__":
     image_save_path = "obstacle_map/"
-    map_size = [60, 60]
-    obs_world0 = generate_obs(size=map_size, obstacle_ratio=30, remove_edge_ratio=10)
+    map_size = [30, 30]
+    obs_world0 = generate_obs(size=map_size, obstacle_ratio=20, remove_edge_ratio=7)
     plt.imshow(obs_world0, cmap="gray")
     plt.axis((0, map_size[1], map_size[0], 0))
 

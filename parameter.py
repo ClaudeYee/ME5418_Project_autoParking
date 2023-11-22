@@ -13,7 +13,7 @@ FINAL_REWARD = 50
 MAX_EPISODE_LENGTH = 64       # The maximum steps that an episode can hold
 TIMESTEPS_ROLLOUT = 256
 BATCH_SIZE = 64
-UPDATES_PER_ITERATION = 8       # how many times pi in numerator will update
+UPDATES_PER_ITERATION = 3       # how many times pi in numerator will update
 
 IN_CHANNEL = 3
 LSTM_LAYERS = 2

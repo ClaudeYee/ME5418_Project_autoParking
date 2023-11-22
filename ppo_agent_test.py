@@ -144,12 +144,11 @@ class Agent():
             while sum(self.buffer.episode_lengths) < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
                 print("total time steps run {}".format(k))
-                print("time steps added to buffer {}".format(t))
+                # print("time steps added to buffer {}".format(t))
                 # The following process is done in one buffer
                 # rewards in this episode
-                print("actor_net: ", next(self.actor_net.parameters()).device)
                 t = self.env.run_episode(self.actor_net, t, total_episode_index)
-                print("Episode {} runs {} steps".format(buffer_episode_num, self.env.episode_length))
+                # print("Episode {} runs {} steps".format(buffer_episode_num, self.env.episode_length))
                 buffer_episode_num += 1
                 total_episode_index += 1
                 # self.batch_states.append(env.robot_states)
@@ -265,7 +264,7 @@ class Agent():
                     assert torch.isnan(actor_loss).sum() == 0, print(actor_loss)
                     self.actor_optimizer.zero_grad()
                     actor_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.02, norm_type=2)
+                    torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.01, norm_type=2)
                     actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=1, norm_type=2)
                     self.actor_optimizer.step()
                     # Calculate gradients and perform backward propagation for critic network

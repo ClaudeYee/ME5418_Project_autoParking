@@ -13,8 +13,8 @@ def test():
     max_testing_timesteps = 1e3
     t = 0
 
-    run_num_pretrained = 1
-    buffer_num_saved = 1
+    run_num_pretrained = 0
+    buffer_num_saved = 8
 
     checkpoint_path_actor = ("trained_models" + '/' +"PPO_model_{}".format(run_num_pretrained)
                       + '/' + "PPO_actor_model_{}.pth".format(buffer_num_saved))

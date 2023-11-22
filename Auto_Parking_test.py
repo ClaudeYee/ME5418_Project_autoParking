@@ -331,8 +331,8 @@ class AutoPark_Env(gym.Env):
         # if world0:
         #     world = world0.copy()
         # else:
-        # self.world_obs = self.init_obstacles()  # the obstacle channel of the world
-        self.world_obs = np.zeros(WORLD_SIZE)
+        self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        # self.world_obs = np.zeros(WORLD_SIZE)
         self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
         self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs,
                                                                            self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
@@ -375,7 +375,7 @@ class AutoPark_Env(gym.Env):
             self.init_robot_state = init_robot_state
             return init_robot_pos, init_robot_dir, init_robot_hitbox
         else:
-            print("not available")
+            # print("not available")
             init_robot_pos, init_robot_dir, init_robot_hitbox = self.init_robot(world_obs, world_pklot)
             return init_robot_pos, init_robot_dir, init_robot_hitbox
 
@@ -394,7 +394,6 @@ class AutoPark_Env(gym.Env):
             old_robot_coord = [0,0]
         else:
             old_robot_coord = old_robot_coord[0]
-        print("test2", old_robot_coord)
         robot_state.moveAgent(action_index)
         next_robot_coord, next_robot_dir = robot_state.get_new_coord_and_rotation_index_from_action(action_index)
 
@@ -441,7 +440,6 @@ class AutoPark_Env(gym.Env):
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
         # print("self.states", self.states.shape)
-        print("rewards ", self.rewards)
 
         return t
 
@@ -621,9 +619,9 @@ def check_available(target, world):
     for i in range(target.shape[0]):
         for j in range(target.shape[1]):
             if target[i][j] == 1 and world[i][j] == 1:
-                print("will stuck")
+                # print("will stuck")
                 return False
-    print("not stuck")
+    # print("not stuck")
     return True
 
 
