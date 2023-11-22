@@ -1,40 +1,47 @@
-from matplotlib.animation import FuncAnimation
+import os.path
+import torch
 
-import Auto_Parking
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
+from Auto_Parking_test import AutoPark_Env
+from ppo_agent_test import Agent
 from parameter import *
 
-print(1)
+def test():
+    env = AutoPark_Env()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    agent = Agent(env, device=device)
 
-A = np.zeros([10, 10])
-B = np.full([10, 10], -1)
+    max_testing_timesteps = 1e3
+    t = 0
 
-for i in range(PARKLOT_SIZE[0]):
-    for j in range(PARKLOT_SIZE[1]):
-        A[i, j] = 0
+    run_num_pretrained = 1
+    buffer_num_saved = 1
 
-A[9, 9] = 1
+    checkpoint_path_actor = ("trained_models" + '/' +"PPO_model_{}".format(run_num_pretrained)
+                      + '/' + "PPO_actor_model_{}.pth".format(buffer_num_saved))
+    checkpoint_path_critic = ("trained_models" + '/' +"PPO_model_{}".format(run_num_pretrained)
+                      + '/' + "PPO_critic_model_{}.pth".format(buffer_num_saved))
 
-B[4, 4] = 1
+    agent.load(checkpoint_path_actor, checkpoint_path_critic)
+    print("Successfully load the models!")
 
-S = Auto_Parking.State(A, B)
+    test_running_reward = []
 
-a = [0, 1]
+    while t < max_testing_timesteps:
+        agent.env.init_world()
+        t = agent.env.run_episode(agent.actor_net, t, 0)
+        discounted_reward = 0
+        for reward in reversed(agent.env.rewards):
+            discounted_reward = reward + discounted_reward * GAMMA
 
-print(S.shape1)
+        test_running_reward.append(discounted_reward)
 
-for i in range(8):
-    print(S.moveValidity(a))
-    a = [0, i]
-    if S.moveValidity(a) == 0:
-        print("dir", a[1])
-        S.moveAgent(a)
-        print(S.parking_complete())
-        print(S.next_hitbox_index)
-        print(S.next_hitbox)
-# print(S.state.shape)
+    print("============================================================================================")
 
-print(S.current_pos)
+    avg_test_reward = sum(test_running_reward) / len(test_running_reward)
+    avg_test_reward = round(avg_test_reward, 2)
+    print("average test reward : " + str(avg_test_reward))
+
+    print("============================================================================================")
+
+if __name__ == "__main__":
+    test()

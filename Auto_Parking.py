@@ -52,7 +52,7 @@ class State():
         self.current_hitbox = self.next_hitbox.copy()
         self.num_translation_actions = 9
         # 0: Stay, 1: East, 2: Northeast, 3: North, 4: Northwest, 5: West, 6: Southwest, 7: South, 8: Southeast
-        self.num_rotation_actions = 9
+        self.num_rotation_actions = 3
         # 0: Stay, 1: 0, 2: 45, 3: 90, 4: 135, 5: 180, 6: 225, 7: 270, 8: 315 (degree)
 
         # self.action_space = spaces.Tuple((spaces.Discrete(self.num_translation_actions), spaces.Discrete(self.num_rotation_actions)))
@@ -162,7 +162,7 @@ class State():
 
     def sample_action(self):
         # sampling actions
-        action_index = [random.randint(0, 8), random.randint(0, 8)]
+        action_index = [random.randint(0, 8), random.randint(0, 2)]
         if action_index == None:
             action_index = self.sample_action()
         return action_index
@@ -177,7 +177,16 @@ class State():
         # The function generate new_coord for moveValidity.
         a = action[0]
         translation = self.translation_directions[a]
-        rotation = action[1]
+        if action[1] == 0:
+            rotation = self.robot_next_state[1]
+        elif action[1] == 1:
+            rotation = self.robot_next_state[1] - 1
+        elif action[1] == 2:
+            rotation = self.robot_next_state[1] + 1
+        if rotation < 0:
+            rotation += 8
+        elif rotation >= 8:
+            rotation -=8
         new_coord = (self.robot_next_state[0][0] + translation[0], self.robot_next_state[0][1] + translation[1])
         return new_coord, rotation
 
@@ -222,8 +231,8 @@ class State():
                 rotated_pixel_coords = pixel_coords.dot(np.array([[cos_angle, sin_angle], [-sin_angle, cos_angle]]))
 
                 # see if within origin hitbox
-                if ((-1 * carShape[1])-0.5 < rotated_pixel_coords[0] < (carShape[0]+0.5) and
-                        (-1 * carShape[2])-0.5 < rotated_pixel_coords[1] < (carShape[2])+0.5):
+                if ((-1 * carShape[1]) - 0.5 < rotated_pixel_coords[0] < (carShape[0] + 0.5) and
+                        (-1 * carShape[2]) - 0.5 < rotated_pixel_coords[1] < (carShape[2]) + 0.5):
                     # if so, add to shape1
                     shape1.append([x, y])
         return shape0, shape1
@@ -293,8 +302,8 @@ class AutoPark_Env(gym.Env):
         self.robot_pos = None
         self.robot_dir = None
 
-        self.pklot1_coord = None        # shape: [1, 2]
-        self.pklot2_coord = None        # shape: [1, 2]
+        self.pklot1_coord = None  # shape: [1, 2]
+        self.pklot2_coord = None  # shape: [1, 2]
 
         # self.init_world(world0)
         self.init_robot_state = None  # might have some problems here
@@ -306,8 +315,8 @@ class AutoPark_Env(gym.Env):
         self.actions = []
         self.log_probs = []
         self.valid_actions = []
-        self.rewards = []        # Note: rewards here refers to the rewards in one episode, shape: [this episode length]
-        # self.accumulated_rewards = []
+        self.rewards = []  # Note: rewards here refers to the rewards in one episode, shape: [this episode length]
+        self.accumulated_rewards = []
         # NOTE: episode_length could be less (task completed) or equal to max_episode_length (task failed)
         self.episode_length = 0
         self.max_episode_length = MAX_EPISODE_LENGTH
@@ -321,10 +330,11 @@ class AutoPark_Env(gym.Env):
         # if world0:
         #     world = world0.copy()
         # else:
-        self.world_obs = self.init_obstacles()  # the obstacle channel of the world
-        # self.world_obs = np.zeros([60,60])
+        # self.world_obs = self.init_obstacles()  # the obstacle channel of the world
+        self.world_obs = np.zeros(WORLD_SIZE)
         self.world_pklot, self.pklot1_coord, self.pklot2_coord = self.init_pklots()
-        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs, self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
+        self.robot_pos, self.robot_dir, self.world_robot = self.init_robot(self.world_obs,
+                                                                           self.world_pklot)  # NOTE: self.world_robot is robot_hitbox
         self.world = np.array([self.world_obs, self.world_pklot, self.world_robot])
 
     def init_obstacles(self):
@@ -332,7 +342,8 @@ class AutoPark_Env(gym.Env):
         return world_obs
 
     def init_pklots(self):
-        world_pklots, self.pklot1_coord, self.pklot2_coord = generate_pklots(self.world_size, self.parklot_size, self.world_obs)
+        world_pklots, self.pklot1_coord, self.pklot2_coord = generate_pklots(self.world_size, self.parklot_size,
+                                                                             self.world_obs)
         return world_pklots, self.pklot1_coord, self.pklot2_coord
 
     # Place the robot into the environment in a random position if the position and any grid that the robot takes are not in the girds of obstacles
@@ -348,13 +359,13 @@ class AutoPark_Env(gym.Env):
         init_robot_pos = -1 * np.ones([world_obs.shape[0], world_obs.shape[1]])
         init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
 
-        init_robot_state = State(world_pklot-world_obs, init_robot_pos)
+        init_robot_state = State(world_pklot - world_obs, init_robot_pos)
         init_robot_hitbox = init_robot_state.next_hitbox
 
         # determine whether the robot center has been placed in the free space
         # TODO: this is defined in robot channel of the whole map (there are other channels)
         if (world_obs[coord_x, coord_y] == 0) and check_available(init_robot_hitbox, world_obs):
-        # if check_available(init_robot_hitbox, world_obs):
+            # if check_available(init_robot_hitbox, world_obs):
             # init_robot_pos_coord = [pos_x, pos_y]
             # init_robot_pos = -1 * np.ones([world.shape[0], world.shape[1]])
             # init_robot_pos[init_robot_pos_coord[0], init_robot_pos_coord[1]] = init_robot_dir
@@ -387,32 +398,30 @@ class AutoPark_Env(gym.Env):
         # robot_state is a class, while state is a 3x60x60 matrix
         return robot_state, state, reward, done, valid_action
 
-    def run_episode(self, actor_net, t, episode_index):           # add t to record the number of timesteps run so far in this batch
+    def run_episode(self, actor_net, t,
+                    episode_index):  # add t to record the number of timesteps run so far in this batch
         done = False
-        robot_state = self.init_robot_state  # start the first step from the init_robot_state, and set it as the robot_current_state
-        self.robot_states.append(robot_state)  # save the initial robot state
+        self.reset()
 
-        self.states = []
-        self.actions = []
-        self.log_probs = []
-        self.valid_actions = []
-        self.rewards = []
+        robot_state = copy.deepcopy(self.init_robot_state)  # start the first step from the init_robot_state, and set it as the robot_current_state
+        self.robot_states.append(robot_state)  # save the initial robot state
 
         for i in range(self.max_episode_length):
             # increment timesteps run this batch so far
             t += 1
             self.episode_length += 1
             # if the task is not completed or not reach episode_length, do step for state transition and save robot_state and reward
-            robot_state, state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state, done=done)
+            robot_state, state, reward, done, valid_action = self.step(actor_net=actor_net, robot_state=robot_state,
+                                                                       done=done)
             self.world_robot = robot_state.next_hitbox
             self.world = [self.world_obs, self.world_pklot, self.world_robot]
 
             state = state.squeeze(0)
             self.states.append(state)
 
-            self.valid_actions.append(valid_action) # save the vector of valid actions. 1 for valid.
-            self.robot_states.append(robot_state)   # save the state for each move
-            self.rewards.append(reward)             # save the reward for each move
+            self.valid_actions.append(valid_action)  # save the vector of valid actions. 1 for valid.
+            self.robot_states.append(robot_state)  # save the state for each move
+            self.rewards.append(reward)  # save the reward for each move
 
             self.plot_env(step=i, episode_index=episode_index)
 
@@ -424,6 +433,7 @@ class AutoPark_Env(gym.Env):
         if not done:
             print("The steps in this episode have exceeded the episode length we set, task failed.")
         # print("self.states", self.states.shape)
+        print("rewards ", self.rewards)
 
         return t
 
@@ -438,6 +448,8 @@ class AutoPark_Env(gym.Env):
             translate_cost = 0
             rotate_cost = 0
             dist_reward = 0
+            if action_index[1] == 0 and action_index[0] == 0:
+                return -10
             if action_index[1] != 0:
                 rotate_cost = ROTATE_COST
             if action_index[0] != 0:
@@ -445,33 +457,43 @@ class AutoPark_Env(gym.Env):
 
                 # 2. Reward to stimulate the robot to get closer to the parking lots (either parking lot 1 or parking
                 # lot 2) a = np.array(list(robot_pos)) - np.array(self.pklot1_coord)
-                dist_to_pklot1 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot1_coord))
-                dist_to_pklot2 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot2_coord))
+                dist_to_pklot1 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot1_coord), ord=1)
+                dist_to_pklot2 = np.linalg.norm(np.array(list(robot_coord)) - np.array(self.pklot2_coord), ord=1)
 
                 # calculate the angle between robot heading and the link to the parkinglot center
-                move_angle = (action_index[0]-1) * np.pi / 4
-                move_vector = np.array([np.sin(move_angle), np.cos(move_angle)])
+                move_angle = (action_index[0] - 1) * np.pi / 4
+                move_vector = np.array([np.cos(move_angle), np.sin(move_angle)])
                 vector_to_pklot1 = np.array(self.pklot1_coord) - np.array(list(robot_coord))
                 vector_to_pklot2 = np.array(self.pklot2_coord) - np.array(list(robot_coord))
 
                 # calculate the sin value of the angles
-                sin_to_pklot1 = np.dot(vector_to_pklot1, move_vector) / (np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot1))
-                sin_to_pklot2 = np.dot(vector_to_pklot2, move_vector) / (np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot2))
+                cos_to_pklot1 = np.dot(vector_to_pklot1, move_vector) / (
+                            np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot1) + 1e-10)
+                cos_to_pklot2 = np.dot(vector_to_pklot2, move_vector) / (
+                            np.linalg.norm(move_vector) * np.linalg.norm(vector_to_pklot2) + 1e-10)
 
                 # dist_reward_param is a tunable parameter to guarantee tht dist_reward will never greater than the final reward
-                dist_reward1 = 1 * self.dist_reward_param / (dist_to_pklot1 + 30)
-                dist_reward2 = sin_to_pklot2 * self.dist_reward_param / (dist_to_pklot2 + 30)
+                dist_reward1 = (cos_to_pklot1) * np.sqrt(self.dist_reward_param / (dist_to_pklot1 + 20))
+                if dist_reward1 < 0:
+                    dist_reward1 = 0
+                dist_reward2 = (cos_to_pklot2) * self.dist_reward_param / (dist_to_pklot2 + 20)
                 # TODO: this must be refined later for the dist_reward, for now, just simply sum them up
-                dist_reward = dist_reward1
+                dist_reward = dist_reward1 #+ dist_reward2
 
             # 3. Penalty to punish the robot if it moves to much
 
-            reward = dist_reward
+            reward = dist_reward + translate_cost + rotate_cost
         return reward
 
     def reset(self):
         # del self.
-        self.init_world()
+        self.states = []
+        self.actions = []
+        self.log_probs = []
+        self.valid_actions = []
+        self.rewards = []
+        self.episode_length = 0
+        self.robot_states = []
 
     def save_robot_state(self, robot_state):
         self.robot_states.append(robot_state)
@@ -522,7 +544,7 @@ class AutoPark_Env(gym.Env):
 
         # We will firstly set Probability of invalid action to zero
         for i in range(len(action_distribution[0])):
-            action_index = [i // 9, i % 9]
+            action_index = [i % 9, i // 9]
             if robot_state.moveValidity(action_index) != 0:
                 action_distribution[0][i] = 0
                 valid_action.append(0)
@@ -535,7 +557,7 @@ class AutoPark_Env(gym.Env):
             print("valid_action number", sum(valid_action))
             print("total_probability: ", total_probability)
 
-        normalized_probabilities = action_distribution/total_probability
+        normalized_probabilities = action_distribution / total_probability
 
         contains_nan = torch.isnan(normalized_probabilities).any().item()
         if contains_nan:
@@ -546,13 +568,12 @@ class AutoPark_Env(gym.Env):
             print("==================================================================")
             print(robot_state.state, robot_state.next_pos, robot_state.next_hitbox)
 
-
         action_distribution = Categorical(normalized_probabilities)
 
         selected_index = action_distribution.sample()
         log_prob = normalized_probabilities
 
-        action_index = [selected_index.item() // 9, selected_index.item() % 9]
+        action_index = [selected_index.item() % 9, selected_index.item() // 9]
         # action_index = torch.tensor(selected_index // 9, selected_index % 9).numpy()
 
         state = state.cpu().detach().numpy()
@@ -567,7 +588,7 @@ class AutoPark_Env(gym.Env):
         world_obs = self.world[0] * 255
         world_pklots = self.world[1] * 50
         world_robot = self.world[2] * 180
-        whole_world = world_obs + world_pklots + world_robot    # 10, 20, 30 is in order to distinguish them in gray level
+        whole_world = world_obs + world_pklots + world_robot  # 10, 20, 30 is in order to distinguish them in gray level
         plt.imshow(whole_world, cmap="gray_r")
         plt.axis((0, self.world_size[1], self.world_size[0], 0))
         self.img_save_path = IMG_SAVE_PATH

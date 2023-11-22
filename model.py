@@ -4,7 +4,7 @@ import torch.nn.functional as F
 # from torchviz import make_dot
 import numpy as np
 from torch import optim
-from parameter import LR
+from parameter import LR_ACTOR, LR_CRITIC
 
 class CNNBlock(nn.Module):
     def __init__(self, in_channel=3, output_dim=512):
@@ -12,11 +12,11 @@ class CNNBlock(nn.Module):
         # conv -> ReLU
         self.cnn_layer1 = nn.Sequential(nn.Conv2d(in_channels=in_channel, out_channels=160, kernel_size=7),
                                         nn.BatchNorm2d(160),
-                                        nn.ReLU(inplace=True))  # [54, 54, 160]
-        self.cnn_layer2 = nn.Sequential(nn.Conv2d(in_channels=160, out_channels=320, kernel_size=23),
+                                        nn.ReLU(inplace=True))  # [24, 24, 160]
+        self.cnn_layer2 = nn.Sequential(nn.Conv2d(in_channels=160, out_channels=320, kernel_size=8),
                                         nn.BatchNorm2d(320),
-                                        nn.ReLU(inplace=True))  # [32, 32, 320]
-        self.cnn_layer3 = nn.Sequential(nn.Conv2d(in_channels=320, out_channels=64, kernel_size=24),
+                                        nn.ReLU(inplace=True))  # [17, 22, 320]
+        self.cnn_layer3 = nn.Sequential(nn.Conv2d(in_channels=320, out_channels=64, kernel_size=9),
                                         nn.BatchNorm2d(64),
                                         nn.ReLU(inplace=True))  # [9, 9, 64]
         self.cnn_layer4 = nn.Sequential(nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
@@ -42,7 +42,7 @@ class CNNBlock(nn.Module):
 
 
 class ActorNet(nn.Module):
-    def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=81):
+    def __init__(self, in_channel=3, lstm_layers=2, output_dim=512, action_dim=27):
         super(ActorNet, self).__init__()
         # CNNBlock + LSTM
         self.cnn = CNNBlock(in_channel, output_dim)

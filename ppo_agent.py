@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
+from torch.nn.utils import clip_grad_norm_
 
 from collections import deque
 
@@ -121,18 +122,19 @@ class Agent():
         k = 0
         iteration_times = 0
         total_episode_index = 0
+        self.env.init_world()
 
         while k < total_timesteps:
             # Timesteps run so far in this batch, it increments as the timestep increases in one episode, and still increaments in the next episode
             t = 0
             buffer_episode_num = 0
-            self.env.init_world()
             if tmp_buffer is not None:
                 self.buffer = tmp_buffer
                 if tmp_buffer.episode_lengths:
                     t = self.buffer.episode_lengths[0]
                 else:
                     t = 0
+            # self.env.init_robot(env.world_obs, env.world_pklot)
 
             while sum(self.buffer.episode_lengths) < self.timesteps_rollout:                   # timesteps_rollout = 512, meaning that inside of which, if episode data exceeds 512, it will be input to another rollout
                 print("Collect data into a buffer")
@@ -154,7 +156,7 @@ class Agent():
                 # print(self.batch_episode_lengths)
                 # print("env.states: ", env.states.shape)
                 tmp_buffer = self.buffer.rollout(env.states, env.actions, env.log_probs, env.valid_actions, env.rewards, env.episode_length, t)
-                self.env.init_robot(env.world_obs, env.world_pklot)
+                # self.env.init_robot(env.world_obs, env.world_pklot)
                 # buffer_states.append(env.robot_states)
                 # buffer_actions.append(env.actions)
                 # buffer_log_probs.append(env.log_probs)
@@ -182,17 +184,22 @@ class Agent():
             # compute advantage function value
             buffer_states = self.buffer.states.reshape(-1, 3, WORLD_SIZE[0], WORLD_SIZE[1])
             buffer_action_indices = self.buffer.action_indices.reshape(-1, 2)
-            buffer_log_probs = self.buffer.log_probs.reshape(-1, 81)
-            buffer_valid_actions = self.buffer.valid_actions.reshape(-1, 81)
+            buffer_log_probs = self.buffer.log_probs.reshape(-1, 27)
+            buffer_valid_actions = self.buffer.valid_actions.reshape(-1, 27)
             buffer_rewards = self.buffer.rewards
-            buffer_states = torch.tensor(buffer_states, dtype=torch.float)
+            buffer_states = torch.tensor(buffer_states, dtype=torch.float).to(device)
             # print("rollout_states: ", rollout_states.shape)
             buffer_action_indices = torch.tensor(buffer_action_indices, dtype=torch.float)
             buffer_log_probs = torch.tensor(buffer_log_probs, dtype=torch.float)
-            buffer_valid_actions = torch.tensor(buffer_valid_actions, dtype=torch.float)
+            buffer_valid_actions = torch.tensor(buffer_valid_actions, dtype=torch.float).to(device)
             # rollout_rewards = torch.tensor(rollout_rewards, dtype=torch.float).to(self.device)
 
             buffer_accumulated_rewards = self.compute_accumulated_rewards(buffer_rewards)
+            buffer_old_v_value, _ = self.evaluate(buffer_states, buffer_valid_actions)
+            buffer_old_v_value = buffer_old_v_value.squeeze(-1).cpu().detach()
+
+            buffer_states = buffer_states.cpu().detach()
+            buffer_valid_actions = buffer_valid_actions.cpu().detach()
 
             # V_phi_k
             # old_v_value, _ = self.evaluate_no_grad(rollout_states, rollout_valid_actions)
@@ -217,9 +224,10 @@ class Agent():
                 batch_valid_actions = buffer_valid_actions[index].to(device)
                 # batch_rewards = rollout_rewards[index]
                 batch_accumulated_rewards = buffer_accumulated_rewards[index].to(device)
+                batch_old_v_value = buffer_old_v_value[index].to(device)
 
-                batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions)
-                batch_old_v_value = batch_old_v_value.squeeze(-1)
+                # batch_old_v_value, _ = self.evaluate(batch_states, batch_valid_actions)
+                # batch_old_v_value = batch_old_v_value.squeeze(-1)
 
                 batch_a_value = batch_accumulated_rewards.detach() - batch_old_v_value.detach()
                 # advantage normalization
@@ -242,19 +250,21 @@ class Agent():
                     # NOTE: we take the negative min of the surrogate losses because we're trying to maximize
                     # the performance function, but Adam minimizes the loss. So minimizing the negative
                     # performance function maximizes it.
-                    actor_loss = (-torch.min(surr1, surr2)).mean()
+                    actor_loss = (-torch.min(surr1, surr2))
+                    actor_loss = actor_loss.mean()
                     mseloss = nn.MSELoss()
-                    critic_loss = mseloss(v_value, batch_accumulated_rewards)
+                    critic_loss = mseloss(v_value, batch_accumulated_rewards) / 1e3
 
                     # Calculate gradients and perform backward propagation for actor network
+                    assert torch.isnan(actor_loss).sum() == 0, print(actor_loss)
                     self.actor_optimizer.zero_grad()
                     actor_loss.backward(retain_graph=True)
-                    actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=0.5, norm_type=2)
+                    actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor_net.parameters(), max_norm=5, norm_type=2)
                     self.actor_optimizer.step()
                     # Calculate gradients and perform backward propagation for critic network
                     self.critic_optimizer.zero_grad()
                     critic_loss.backward()
-                    critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=0.5, norm_type=2)
+                    critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic_net.parameters(), max_norm=5, norm_type=2)
                     self.critic_optimizer.step()
 
                     self.writer.add_scalar('accumulated_rewards/episode', batch_accumulated_rewards.cpu().numpy().mean().item(), iteration_times)
@@ -325,4 +335,4 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     agent = Agent(env, device=device)
-    agent.learn(10000)
+    agent.learn(20000)
