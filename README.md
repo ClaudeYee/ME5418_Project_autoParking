@@ -1,6 +1,6 @@
-# Path Planning for Autonomous Parking Using A2C RL Method
+# Path Planning for Autonomous Parking Using PPO RL Method
 
-This project is part of the ME5418 - Machine Learning for Robotics module from the National University of Singapore. The aim of this project is to use reinforcement learning techniques and most precisely A2C method, to determine the most efficient path and parking maneuver for a vehicle to navigate in complex and crowded parking spaces with narrow corridors and static obstacles (such as parking pillars, walls, and parked cars) before parking in an available spot. To simulate real-world scenarios, our robot, with its associated hitbox, is placed in a 2D world represented by an N × N grid with multiple static obstacles that mimic those encountered by a real car in a parking lot, along with two available parking spots.
+This project is part of the ME5418 - Machine Learning for Robotics module from the National University of Singapore. The aim of this project is to use reinforcement learning techniques and most precisely PPO method, to determine the most efficient path and parking maneuver for a vehicle to navigate in complex and crowded parking spaces with narrow corridors and static obstacles (such as parking pillars, walls, and parked cars) before parking in an available spot. To simulate real-world scenarios, our robot, with its associated hitbox, is placed in a 2D world represented by an N × N grid with multiple static obstacles that mimic those encountered by a real car in a parking lot, along with two available parking spots.
 
 # Dependencies
 
@@ -30,7 +30,7 @@ $ pip3 install -r requirements.txt
 
 # Training Process Visualization (Tensorboard)
 
-In order to visualize the and keep track of the training process, you need to  access the Tensorboard module via the terminal using the following command line:
+In order to visualize the and keep track of the training process, you need to access the Tensorboard module via the terminal using the following command line:
 ```
 tensorboard --logdir=./exp
 ```
