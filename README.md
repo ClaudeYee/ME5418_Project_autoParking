@@ -13,6 +13,7 @@ The follwoing are the required libraries and dependencies in order to be able to
 * scikit-image==0.21.0
 * matplotlib==3.8.0
 * tensorboard==2.15.1
+* Pillow== 10.1.0
 
 # Setup Linux
 
@@ -22,6 +23,17 @@ $ virtualenv env
 $ source env/bin/activate
 $ pip3 install -r requirements.txt
 ```
+# Files
+
+* ```parameter.py``` Training Parameter Settings
+* ```autopark_env.py``` Autonomous Parking Environment
+* ```model.py``` Neural Network Design
+* ```ppo_agent.py``` Agent Definition
+* ```ppo_agent.py``` Agent Definition
+* ```obs_pklots_generator.py``` Generate Maps for Robot
+* ```train.py``` Train the Model
+* ```test.py``` Test the Model
+
 # Usage
 
 * To train a new network : run ```train.py```
