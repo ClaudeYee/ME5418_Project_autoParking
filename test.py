@@ -1,8 +1,8 @@
 import os.path
 import torch
 
-from Auto_Parking_test import AutoPark_Env
-from ppo_agent_test import Agent
+from autopark_env import AutoPark_Env
+from ppo_agent import Agent
 from parameter import *
 
 def test():
@@ -16,9 +16,9 @@ def test():
     run_num_pretrained = 0
     buffer_num_saved = 8
 
-    checkpoint_path_actor = ("trained_models" + '/' +"PPO_model_{}".format(run_num_pretrained)
+    checkpoint_path_actor = ("trained_models" + '/' + "PPO_model_{}".format(run_num_pretrained)
                       + '/' + "PPO_actor_model_{}.pth".format(buffer_num_saved))
-    checkpoint_path_critic = ("trained_models" + '/' +"PPO_model_{}".format(run_num_pretrained)
+    checkpoint_path_critic = ("trained_models" + '/' + "PPO_model_{}".format(run_num_pretrained)
                       + '/' + "PPO_critic_model_{}.pth".format(buffer_num_saved))
 
     agent.load(checkpoint_path_actor, checkpoint_path_critic)
@@ -42,6 +42,7 @@ def test():
     print("average test reward : " + str(avg_test_reward))
 
     print("============================================================================================")
+
 
 if __name__ == "__main__":
     test()

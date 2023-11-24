@@ -1,8 +1,8 @@
 import os.path
 import torch
 
-from Auto_Parking_test import AutoPark_Env
-from ppo_agent_test import Agent
+from autopark_env import AutoPark_Env
+from ppo_agent import Agent
 from parameter import *
 
 import time

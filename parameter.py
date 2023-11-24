@@ -12,7 +12,7 @@ FINAL_REWARD = 50
 
 MAX_EPISODE_LENGTH = 64       # The maximum steps that an episode can hold
 TIMESTEPS_ROLLOUT = 256
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 UPDATES_PER_ITERATION = 3       # how many times pi in numerator will update
 
 IN_CHANNEL = 3
@@ -26,7 +26,7 @@ LR_CRITIC = 0.001
 LR_ACTOR = 0.0003
 CLIP = 0.2
 
-IMG_SAVE_PATH = "process_visual_episodes_23_Nov_change_initpos"
+IMG_SAVE_PATH = "episode_images"
+GIF_SAVE_PATH = "episode_gifs"
 
 USE_GPU = False
-TRAIN = False           # if Train = True, save the model
