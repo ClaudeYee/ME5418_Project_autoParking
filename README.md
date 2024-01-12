@@ -1,6 +1,6 @@
 # Path Planning for Autonomous Parking Using PPO RL Method
 
-This project is part of the ME5418 - Machine Learning for Robotics module from the National University of Singapore. The aim of this project is to use reinforcement learning techniques and most precisely PPO method, to determine the most efficient path and parking maneuver for a vehicle to navigate in complex and crowded parking spaces with narrow corridors and static obstacles (such as parking pillars, walls, and parked cars) before parking in an available spot. To simulate real-world scenarios, our robot, with its associated hitbox, is placed in a 2D world represented by an N × N grid with multiple static obstacles that mimic those encountered by a real car in a parking lot, along with two available parking spots.
+This project is part of the ME5418 - Machine Learning for Robotics module at National University of Singapore. The aim of this project is to use reinforcement learning techniques and most precisely PPO method, to determine the most efficient path and parking maneuver for a vehicle to navigate in complex and crowded parking spaces with narrow corridors and static obstacles (such as parking pillars, walls, and parked cars) before parking in an available spot. To simulate real-world scenarios, our robot, with its associated hitbox, is placed in a 2D world represented by an N × N grid with multiple static obstacles that mimic those encountered by a real car in a parking lot, along with two available parking spots.
 
 # Dependencies
 
@@ -13,14 +13,14 @@ The follwoing are the required libraries and dependencies in order to be able to
 * scikit-image==0.21.0
 * matplotlib==3.8.0
 * tensorboard==2.15.1
-* Pillow== 10.1.0
+* Pillow==10.1.0
 
 # Setup Linux
 
 To be able to run the code you have to create a virtual environment by typing these lines in your terminal:
 ```
-$ virtualenv env
-$ source env/bin/activate
+$ conda create -n auto_pk_env python==3.9
+$ conda activate auto_pk_env
 $ pip3 install -r requirements.txt
 ```
 # Files
