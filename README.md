@@ -29,7 +29,6 @@ $ pip3 install -r requirements.txt
 * ```autopark_env.py``` Autonomous Parking Environment
 * ```model.py``` Neural Network Design
 * ```ppo_agent.py``` Agent Definition
-* ```ppo_agent.py``` Agent Definition
 * ```obs_pklots_generator.py``` Generate Maps for Robot
 * ```train.py``` Train the Model
 * ```test.py``` Test the Model
